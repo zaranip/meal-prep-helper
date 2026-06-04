@@ -1,0 +1,25 @@
+        body {
+            background-color: #fafaf9;
+            color: #292524;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 280px;
+            max-height: 320px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .timeline-ing-link {
+            transition: all 0.2s ease;
+        }
+        .timeline-ing-link:hover {
+            transform: scale(1.02);
+        }

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Meal Prep Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        stoneNeutral: {
+                            50: '#fafaf9',
+                            100: '#f5f5f4',
+                            200: '#e7e5e4',
+                            300: '#d6d3d1',
+                            700: '#44403c',
+                            800: '#292524',
+                            900: '#1c1917',
+                        },
+                        emeraldAccent: '#0f766e',
+                        amberAccent: '#d97706',
+                        skyAccent: '#0369a1'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="antialiased">
+
+    <!-- Chosen Palette: Warm Minimal Neutrals (Warm stone gray base, rich emerald for clean protein targets, deep amber for healthy fats, sky blue for high volume fibers) -->
+    
+    <!-- Application Structure Plan: We designed a modular, three-tabbed dashboard architecture (Dashboard, Recipe Scaler, Sunday Planner) to simplify meal prep tracking. The system enables seamless mix-and-matching of breakfasts, lunches, dinners, and desserts, automatically recalculating daily and weekly macro-nutrient summaries, rendering real-time calorie contribution pie charts, and populating a dynamically-linked shopping list and timeline prep system. All main meals are capped strictly below 800 calories, and daily snack baseline is set entirely to carrot stick bags. -->
+    
+    <!-- Visualization & Content Choices:
+         1. Daily Caloric Contributions -> Goal: Compare -> Pie Chart (Chart.js) -> Interaction: Hover tooltips -> Justification: Pie charts are highly effective at visually communicating fractional contributions of discrete food selections to a singular daily calorie metric.
+         2. Dynamic Recipe Scaler -> Goal: Organize/Change -> Sidebar + Ingredient Card Layout -> Interaction: Multi-unit converter with instant conversion results -> Justification: Gives the user precise, high-fidelity metrics over single ingredients and whole batches.
+         3. Dynamic Sunday Prep List -> Goal: Change/Compare -> Highlighted Badge Interactions -> Justification: Clickable links instantly bind timeline steps back to ingredient database macros.
+         Confirming NO SVG graphics used and NO Mermaid JS used. All visual assets are rendered dynamically on Canvas. -->
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-white border-b border-stoneNeutral-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-stoneNeutral-900 tracking-tight">Meal Prep Dashboard</h1>
+                <p class="text-sm text-stoneNeutral-700 mt-1">Healthy, Nutritious, High Protein Diet &bull; Daily Calorie Goal:
+                    <input type="number" id="calorie-goal" min="200" max="5000" step="50" value="1800" class="w-20 font-semibold text-emeraldAccent bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-2 focus:ring-emeraldAccent">
+                    <span class="text-emeraldAccent font-semibold">kcal/day</span>
+                    <span class="block text-[11px] text-stoneNeutral-700 mt-0.5">Changing this scales every recipe &amp; the 1.0&times; prep baseline in proportion.</span>
+                </p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-bold text-stoneNeutral-700">Ingredient Units:</span>
+                    <div class="flex bg-stoneNeutral-100 p-0.5 rounded-lg border border-stoneNeutral-200">
+                        <button data-amount="exact" class="amount-btn px-3 py-1 rounded-md text-xs font-bold transition-all bg-white shadow-sm text-emeraldAccent">Exact</button>
+                        <button data-amount="whole" class="amount-btn px-3 py-1 rounded-md text-xs font-bold transition-all text-stoneNeutral-700 hover:text-stoneNeutral-900">Whole</button>
+                    </div>
+                    <span class="text-[11px] text-stoneNeutral-700 italic">Rounds discrete items (eggs, bagels, potatoes, slices, cubes) to whole numbers across macros, the scaler &amp; shopping.</span>
+                </div>
+            </div>
+            <div class="flex gap-2 bg-stoneNeutral-100 p-1.5 rounded-lg border border-stoneNeutral-200 text-sm">
+                <button data-tab="dashboard" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-800 bg-white shadow-sm transition-all">Daily Dashboard</button>
+                <button data-tab="recipes" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Recipe Scaler</button>
+                <button data-tab="prep" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Sunday Planner</button>
+                <button data-tab="calendar" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Calendar</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- TAB 1: DAILY DASHBOARD -->
+        <section id="dashboard" class="tab-content active">
+            <div class="mb-8 max-w-4xl">
+                <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Weekly Deficit Mapping</h2>
+                <p class="text-stoneNeutral-700 leading-relaxed">
+                    Custom-build your weekly schedule. Select one of our pre-built week templates, or <b>mix-and-match any breakfast, lunch, dinner, or dessert</b> to generate real-time daily macro totals, weekly sums (based on prep days), and recipe calorie contribution charts.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Selectors & Daily list -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-stoneNeutral-200 pb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-stoneNeutral-900">Custom Mix &amp; Match Menu</h3>
+                                <p class="text-xs text-stoneNeutral-700 mt-1">Configure your meals to instantly calculate custom macros.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-stoneNeutral-700">Load Template:</span>
+                                <select id="week-selector" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded-lg px-3 py-1.5 text-xs font-medium text-stoneNeutral-800 focus:ring-2 focus:ring-emeraldAccent">
+                                    <option value="1" selected>Week 1: Stir-Fry &amp; Blondies</option>
+                                    <option value="2">Week 2: Sichuan &amp; Pudding</option>
+                                    <option value="3">Week 3: Curry &amp; Patties</option>
+                                    <option value="4">Week 4: Comfort &amp; Laab</option>
+                                    <option value="custom">Custom Mix &amp; Match</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Mix and Match Dropdown Controls -->
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 p-4 bg-stoneNeutral-50 rounded-xl border border-stoneNeutral-200">
+                            <div>
+                                <label class="block text-[10px] uppercase font-black tracking-wider text-stoneNeutral-700 mb-1.5">Breakfast Choice</label>
+                                <select id="breakfast-mix" class="w-full bg-white border border-stoneNeutral-300 rounded-lg px-2.5 py-1.5 text-xs text-stoneNeutral-800 font-semibold focus:ring-2 focus:ring-emeraldAccent">
+                                    <option value="bagel">Sola Blueberry Bagel (205 kcal)</option>
+                                    <option value="pancakes">Protein Pancakes (183 kcal)</option>
+                                    <option value="frittata">Egg White Frittata (153 kcal)</option>
+                                    <option value="eggSkillet">Spiced Tomato &amp; Egg Skillet (195 kcal)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase font-black tracking-wider text-stoneNeutral-700 mb-1.5">Lunch Choice</label>
+                                <select id="lunch-mix" class="w-full bg-white border border-stoneNeutral-300 rounded-lg px-2.5 py-1.5 text-xs text-stoneNeutral-800 font-semibold focus:ring-2 focus:ring-emeraldAccent">
+                                    <!-- Both Lunch and Dinner show all 8 options so she can mix and match lunch & dinner perfectly -->
+                                    <option value="vegStirfry" selected>Veg Stir Fry (765 kcal)</option>
+                                    <option value="tofuStirfry">Tofu Stir Fry (662 kcal)</option>
+                                    <option value="mapoTofu">Mapo Tofu (757 kcal)</option>
+                                    <option value="silkyTofu">Silky Egg Tofu (684 kcal)</option>
+                                    <option value="curryLunch">Curry Pocket Box (778 kcal)</option>
+                                    <option value="tofuPatties">Tofu Patties (691 kcal)</option>
+                                    <option value="ramen">Spicy Ramen (689 kcal)</option>
+                                    <option value="laab">Vegan Tofu Laab (779 kcal)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase font-black tracking-wider text-stoneNeutral-700 mb-1.5">Dinner Choice</label>
+                                <select id="dinner-mix" class="w-full bg-white border border-stoneNeutral-300 rounded-lg px-2.5 py-1.5 text-xs text-stoneNeutral-800 font-semibold focus:ring-2 focus:ring-emeraldAccent">
+                                    <option value="tofuStirfry" selected>Tofu Stir Fry (662 kcal)</option>
+                                    <option value="vegStirfry">Veg Stir Fry (765 kcal)</option>
+                                    <option value="mapoTofu">Mapo Tofu (757 kcal)</option>
+                                    <option value="silkyTofu">Silky Egg Tofu (684 kcal)</option>
+                                    <option value="curryLunch">Curry Pocket Box (778 kcal)</option>
+                                    <option value="tofuPatties">Tofu Patties (691 kcal)</option>
+                                    <option value="ramen">Spicy Ramen (689 kcal)</option>
+                                    <option value="laab">Vegan Tofu Laab (779 kcal)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] uppercase font-black tracking-wider text-stoneNeutral-700 mb-1.5">Dessert Choice</label>
+                                <select id="dessert-mix" class="w-full bg-white border border-stoneNeutral-300 rounded-lg px-2.5 py-1.5 text-xs text-stoneNeutral-800 font-semibold focus:ring-2 focus:ring-emeraldAccent">
+                                    <option value="blondies">Protein Blondies (88 kcal)</option>
+                                    <option value="pudding">Chocolate Pudding (74 kcal)</option>
+                                    <option value="mugcake">Protein Mug Cake (99 kcal)</option>
+                                    <option value="proteinIceCream">Cottage Cheese Choc Ice Cream (171 kcal)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Active Daily Plan List -->
+                        <div id="meals-list" class="space-y-4">
+                            <!-- Populated via JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Macro Target Guardrail Checks -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-stoneNeutral-200 flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-green-50 text-green-700 font-bold text-lg" id="val-target-icon">&#10003;</div>
+                            <div>
+                                <h4 class="text-xs uppercase font-bold text-stoneNeutral-700 tracking-wider">Deficit Target</h4>
+                                <p class="text-sm font-semibold text-stoneNeutral-800 mt-1" id="val-target-text">Under 1,800 kcal</p>
+                                <p class="text-xs text-stoneNeutral-700 mt-0.5" id="val-target-desc">Somatic Alignment</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-stoneNeutral-200 flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-green-50 text-green-700 font-bold text-lg" id="val-max-icon">&#10003;</div>
+                            <div>
+                                <h4 class="text-xs uppercase font-bold text-stoneNeutral-700 tracking-wider">Meal Maximum</h4>
+                                <p class="text-sm font-semibold text-stoneNeutral-800 mt-1" id="val-max-text">&lt; 800 Calories</p>
+                                <p class="text-xs text-stoneNeutral-700 mt-0.5" id="val-max-desc">All Dishes Safe</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-stoneNeutral-200 flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-green-50 text-green-700 font-bold text-lg" id="val-snacks-icon">&#10003;</div>
+                            <div>
+                                <h4 class="text-xs uppercase font-bold text-stoneNeutral-700 tracking-wider">Snack &amp; Dessert</h4>
+                                <p class="text-sm font-semibold text-stoneNeutral-800 mt-1" id="val-snacks-text">&lt; 400 Calories</p>
+                                <p class="text-xs text-stoneNeutral-700 mt-0.5" id="val-snacks-desc">Comfort Bounds Met</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Weekly Macro Summaries & Calorie Contribution Pie Chart -->
+                <div class="space-y-6">
+                    <!-- Pie Chart & Total Macros -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200">
+                        <h3 class="text-base font-bold text-stoneNeutral-900 mb-2">Plan Caloric Contribution</h3>
+                        <p class="text-xs text-stoneNeutral-700 mb-4">Visualizes exactly how much energy each selection contributes to your daily menu.</p>
+                        <div class="chart-container">
+                            <canvas id="dailyMacroChart"></canvas>
+                        </div>
+
+                        <!-- Macro totals area with customizable active prep days tracker -->
+                        <div class="mt-6 pt-6 border-t border-stoneNeutral-200 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-xs uppercase font-black tracking-wider text-stoneNeutral-700">Combined Summaries</h4>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-xs font-bold text-stoneNeutral-800">Prep Days:</span>
+                                    <input type="number" id="dashboard-days" min="1" max="7" value="7" class="w-12 text-center font-bold border border-stoneNeutral-200 rounded p-0.5 text-xs bg-stoneNeutral-50">
+                                </div>
+                            </div>
+                            
+                            <!-- Detailed full week macros layout -->
+                            <div class="space-y-3">
+                                <div class="bg-stoneNeutral-50 p-4 rounded-xl border border-stoneNeutral-200">
+                                    <span class="text-[10px] text-stoneNeutral-700 uppercase font-black tracking-wider block mb-2">Daily Totals</span>
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Calories:</span> <span class="font-bold font-mono text-stoneNeutral-800" id="sum-daily-cal">0 kcal</span></div>
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Protein:</span> <span class="font-bold font-mono text-emeraldAccent" id="sum-daily-pro">0g</span></div>
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Fat:</span> <span class="font-bold font-mono text-amberAccent" id="sum-daily-fat">0.0g</span></div>
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Fiber:</span> <span class="font-bold font-mono text-skyAccent" id="sum-daily-fib">0.0g</span></div>
+                                        <div class="col-span-2"><span class="text-stoneNeutral-700 font-semibold">Carbs:</span> <span class="font-bold font-mono text-stoneNeutral-800" id="sum-daily-carb">0g</span></div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-stoneNeutral-50 p-4 rounded-xl border border-stoneNeutral-200">
+                                    <span class="text-[10px] text-stoneNeutral-700 uppercase font-black tracking-wider block mb-2" id="week-sum-title">Weekly Cumulative Plan (7 Days)</span>
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Calories:</span> <span class="font-bold font-mono text-stoneNeutral-800" id="sum-weekly-cal">0 kcal</span></div>
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Protein:</span> <span class="font-bold font-mono text-emeraldAccent" id="sum-weekly-pro">0g</span></div>
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Fat:</span> <span class="font-bold font-mono text-amberAccent" id="sum-weekly-fat">0g</span></div>
+                                        <div><span class="text-stoneNeutral-700 font-semibold">Fiber:</span> <span class="font-bold font-mono text-skyAccent" id="sum-weekly-fib">0g</span></div>
+                                        <div class="col-span-2"><span class="text-stoneNeutral-700 font-semibold">Carbs:</span> <span class="font-bold font-mono text-stoneNeutral-800" id="sum-weekly-carb">0g</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lock Warnings -->
+                    <div class="bg-stoneNeutral-100 p-6 rounded-xl border border-stoneNeutral-200">
+                        <h4 class="text-xs font-bold text-stoneNeutral-900 uppercase tracking-wider mb-2">Active Multiplier Logic</h4>
+                        <p class="text-xs text-stoneNeutral-700 leading-relaxed">
+                            For ease of kitchen management, **1.0x (Plan Base)** in the Recipe Scaler acts as a unified master switch. It automatically renders the exact caloric boundaries of whichever breakfast, lunch, or dinner you selected on the mix-and-match board.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: RECIPE SCALER & EXPLORER -->
+        <section id="recipes" class="tab-content">
+            <div class="mb-8 max-w-4xl">
+                <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Interactive Recipe Explorer</h2>
+                <p class="text-stoneNeutral-700 leading-relaxed">
+                    Select a recipe from the library below. The quantities represent your customized meal plan's baseline. Scale up to output exact multi-batch measurements for your Sunday prep, or dial down to examine individual micro-portions. Click any ingredient in the shopping list to view detailed conversions and its isolated macro-nutritional values.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Recipe Library Directory -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-stoneNeutral-900 uppercase tracking-wider mb-2">Recipe Library</h3>
+                    <div id="recipe-directory" class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+                        <!-- Populated via JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Main Interactive Scaling Workspace -->
+                <div class="lg:col-span-3 space-y-6">
+                    <div id="recipe-workspace" class="bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200 min-h-[400px]">
+                        <!-- Select default message or dynamic container -->
+                        <div id="workspace-loading" class="flex flex-col items-center justify-center h-64 text-stoneNeutral-700">
+                            <p class="font-medium">Select a recipe from the directory to start scaling</p>
+                        </div>
+                        <div id="workspace-content" class="hidden space-y-6">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-stoneNeutral-200">
+                                <div>
+                                    <h3 class="text-xl font-bold text-stoneNeutral-900" id="recipe-title">--</h3>
+                                    <p class="text-sm text-stoneNeutral-700 mt-1" id="recipe-desc">--</p>
+                                    <p class="text-xs text-stoneNeutral-700 italic mt-0.5" id="recipe-scaling-tip"></p>
+                                </div>
+                                <span class="bg-emeraldAccent text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full" id="recipe-type">--</span>
+                            </div>
+
+                            <!-- Scale Controls -->
+                            <div class="bg-stoneNeutral-50 p-4 rounded-xl border border-stoneNeutral-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div class="flex items-center gap-3">
+                                    <label class="text-sm font-bold text-stoneNeutral-800 whitespace-nowrap">Multiplier Servings:</label>
+                                    <input type="number" id="multiplier-input" min="0.25" max="100" step="0.25" value="7.0" class="w-20 bg-white border border-stoneNeutral-300 rounded-lg px-3 py-1 text-center font-bold text-stoneNeutral-800 focus:outline-none focus:ring-2 focus:ring-emeraldAccent">
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button class="preset-btn px-3 py-1 text-xs font-semibold bg-white border border-stoneNeutral-300 rounded hover:bg-stoneNeutral-100 text-stoneNeutral-800" data-scale="0.25">0.25x</button>
+                                    <button class="preset-btn px-3 py-1 text-xs font-semibold bg-white border border-stoneNeutral-300 rounded hover:bg-stoneNeutral-100 text-stoneNeutral-800" data-scale="0.5">0.5x</button>
+                                    <button class="preset-btn px-3 py-1 text-xs font-semibold bg-white border border-stoneNeutral-300 rounded hover:bg-stoneNeutral-100 text-stoneNeutral-800" data-scale="1.0">1.0x (Plan Base)</button>
+                                    <button class="preset-btn px-3 py-1 text-xs font-semibold bg-white border border-stoneNeutral-300 rounded hover:bg-stoneNeutral-100 text-stoneNeutral-800" data-scale="5.0">5.0x (Workday Prep)</button>
+                                    <button class="preset-btn px-3 py-1 text-xs font-semibold bg-white border border-stoneNeutral-300 rounded hover:bg-stoneNeutral-100 text-stoneNeutral-800" data-scale="7.0">7.0x (Weekly Prep)</button>
+                                </div>
+                            </div>
+
+                            <!-- Carb Base toggle (this recipe only — shown for rice-based recipes) -->
+                            <div id="carb-toggle-wrap" class="hidden flex items-center gap-3 bg-stoneNeutral-50 px-4 py-3 rounded-xl border border-stoneNeutral-200">
+                                <span class="text-sm font-bold text-stoneNeutral-800">Carb Base:</span>
+                                <div class="flex bg-white p-0.5 rounded-lg border border-stoneNeutral-200">
+                                    <button data-carb="rice" class="carb-btn px-4 py-1 rounded-md text-xs font-bold transition-all bg-white shadow-sm text-emeraldAccent">Rice</button>
+                                    <button data-carb="pasta" class="carb-btn px-4 py-1 rounded-md text-xs font-bold transition-all text-stoneNeutral-700 hover:text-stoneNeutral-900">Brami Pasta</button>
+                                </div>
+                                <span class="text-[11px] text-stoneNeutral-700 italic">Calorie-matched — affects this recipe only.</span>
+                            </div>
+
+                            <!-- Scaled Macros Indicator Grid -->
+                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                                <div class="bg-stoneNeutral-50 p-3 rounded-lg border border-stoneNeutral-200 text-center">
+                                    <span class="text-[10px] font-bold text-stoneNeutral-700 uppercase tracking-wider">Calories</span>
+                                    <p class="text-lg font-black text-stoneNeutral-800 mt-1" id="macro-cal">0 kcal</p>
+                                </div>
+                                <div class="bg-stoneNeutral-50 p-3 rounded-lg border border-stoneNeutral-200 text-center">
+                                    <span class="text-[10px] font-bold text-stoneNeutral-700 uppercase tracking-wider">Protein</span>
+                                    <p class="text-lg font-black text-emeraldAccent mt-1" id="macro-prot">0g</p>
+                                </div>
+                                <div class="bg-stoneNeutral-50 p-3 rounded-lg border border-stoneNeutral-200 text-center">
+                                    <span class="text-[10px] font-bold text-stoneNeutral-700 uppercase tracking-wider">Fat</span>
+                                    <p class="text-lg font-black text-amberAccent mt-1" id="macro-fat">0g</p>
+                                </div>
+                                <div class="bg-stoneNeutral-50 p-3 rounded-lg border border-stoneNeutral-200 text-center">
+                                    <span class="text-[10px] font-bold text-stoneNeutral-700 uppercase tracking-wider">Fiber</span>
+                                    <p class="text-lg font-black text-skyAccent mt-1" id="macro-fib">0g</p>
+                                </div>
+                                <div class="bg-stoneNeutral-50 p-3 rounded-lg border border-stoneNeutral-200 text-center col-span-2 sm:col-span-1">
+                                    <span class="text-[10px] font-bold text-stoneNeutral-700 uppercase tracking-wider">Carbs</span>
+                                    <p class="text-lg font-black text-stoneNeutral-800 mt-1" id="macro-carb">0g</p>
+                                </div>
+                            </div>
+
+                            <!-- Two Columns: Ingredients (Left) and Prep Instructions (Right) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                                <div>
+                                    <h4 class="font-bold text-stoneNeutral-900 border-b border-stoneNeutral-200 pb-2 mb-2">Scaled Shopping List</h4>
+                                    <p class="text-[10px] text-stoneNeutral-700 mb-4 italic">Click any item below to explore measurements &amp; precise calorie/macro metrics.</p>
+                                    <ul class="space-y-3" id="scaled-ingredients">
+                                        <!-- Populated dynamically -->
+                                    </ul>
+
+                                    <!-- Interactive Ingredient Deep Dive Panel -->
+                                    <div id="ingredient-deep-dive" class="hidden mt-6 p-4 rounded-xl bg-stoneNeutral-100 border border-stoneNeutral-300 shadow-inner">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <h5 class="text-xs font-black uppercase text-stoneNeutral-800 tracking-wider" id="dive-ing-name">Ingredient Insights</h5>
+                                            <button onclick="closeDeepDive()" class="text-xs text-stoneNeutral-700 hover:text-stoneNeutral-900 font-bold">&times; Close</button>
+                                        </div>
+                                        <div class="grid grid-cols-5 gap-2 text-center text-[10px] font-semibold mb-4">
+                                            <div class="bg-white p-1.5 rounded"><span class="block text-stoneNeutral-700">KCAL</span><span id="dive-ing-cal" class="font-bold">0</span></div>
+                                            <div class="bg-white p-1.5 rounded"><span class="block text-stoneNeutral-700">PRO</span><span id="dive-ing-pro" class="font-bold text-emeraldAccent">0</span></div>
+                                            <div class="bg-white p-1.5 rounded"><span class="block text-stoneNeutral-700">FAT</span><span id="dive-ing-fat" class="font-bold text-amberAccent">0</span></div>
+                                            <div class="bg-white p-1.5 rounded"><span class="block text-stoneNeutral-700">FIB</span><span id="dive-ing-fib" class="font-bold text-skyAccent">0</span></div>
+                                            <div class="bg-white p-1.5 rounded"><span class="block text-stoneNeutral-700">CARB</span><span id="dive-ing-carb" class="font-bold">0</span></div>
+                                        </div>
+                                        
+                                        <!-- Active Real-Time Conversion Display -->
+                                        <div id="conversion-display-box" class="hidden mb-3 p-2 bg-stoneNeutral-50 border border-stoneNeutral-200 rounded text-center text-xs font-bold text-stoneNeutral-800">
+                                            <!-- Dynamically updated -->
+                                        </div>
+
+                                        <label class="block text-[10px] font-bold text-stoneNeutral-700 uppercase mb-2">Convert Measurements:</label>
+                                        <div class="grid grid-cols-5 gap-1.5" id="dive-conversion-buttons">
+                                            <!-- Dynamically injected units -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-stoneNeutral-900 border-b border-stoneNeutral-200 pb-2 mb-4">Preparation &amp; Assembly</h4>
+                                    <ol class="space-y-3 list-decimal pl-5 text-sm text-stoneNeutral-800 leading-relaxed" id="recipe-steps">
+                                        <!-- Populated dynamically -->
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <!-- Rice vs. Pasta macro-change box (shown for rice-based recipes) -->
+                            <div id="macro-change-box" class="hidden mt-8 p-5 bg-amber-50 rounded-xl border border-amber-200"></div>
+
+                            <!-- Dedicated Freezer Guideline Area (At the bottom of Scaler) -->
+                            <div class="mt-8 p-5 bg-sky-50 rounded-xl border border-sky-200">
+                                <h4 class="font-bold text-stoneNeutral-900 flex items-center gap-2 mb-2 text-sm">
+                                    <span class="text-skyAccent">&#10052;</span> Freezer Security &amp; Reheating Guidelines
+                                </h4>
+                                <p class="text-xs text-stoneNeutral-800 leading-relaxed" id="recipe-freezer-tips">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: GROCERY & SUNDAY PLANNER -->
+        <section id="prep" class="tab-content">
+            <div class="mb-8 max-w-4xl">
+                <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Smart Prep Planner &amp; Grocery List</h2>
+                <p class="text-stoneNeutral-700 leading-relaxed">
+                    This advanced utility automates Sunday batch planning. The shopping list is perfectly synchronized with your custom Mix &amp; Match selections made in the Dashboard.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Selectors -->
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200">
+                        <h3 class="text-lg font-bold text-stoneNeutral-900 mb-4">Select Target Prep Days</h3>
+                        <div class="mt-4">
+                            <label class="text-sm font-bold text-stoneNeutral-800 block mb-2">Days of Prep (Default is 7):</label>
+                            <input type="number" id="planner-days" min="1" max="7" value="7" class="w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded-lg px-4 py-2 text-stoneNeutral-800 focus:outline-none focus:ring-2 focus:ring-emeraldAccent font-semibold">
+                            <p class="text-xs text-stoneNeutral-700 mt-1 italic">Type 5 for standard Workday Prep or 7 for full Weekly Prep.</p>
+                        </div>
+                    </div>
+
+                    <!-- Carryover Optimization Tip -->
+                    <div class="bg-emeraldAccent text-white p-6 rounded-xl">
+                        <h4 class="font-bold text-lg mb-2">Zero-Waste carryover checklist</h4>
+                        <p class="text-xs opacity-90 leading-relaxed mb-4">These items keep fresh inside sealed containers and carry over securely between Sunday rotations:</p>
+                        <ul class="text-xs space-y-2 opacity-95">
+                            <li>&bull; **Kirkland Liquid Egg Whites**: Buy the bulk multi-packs. Keeps safely refrigerated until ready to waffle or scramble.</li>
+                            <li>&bull; **Extra-Firm Tofu**: Sealed water tubs maintain texture for weeks.</li>
+                            <li>&bull; **White/Black Rice Grains**: Keep in dry airtight pantry containers.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Outputs: Consolidated Grocery Shopping List (Teal layout) -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200">
+                    <div class="flex justify-between items-center pb-4 border-b border-stoneNeutral-200 mb-6">
+                        <h3 class="text-lg font-bold text-stoneNeutral-900">Consolidated Weekly Grocery List</h3>
+                        <span class="text-xs bg-emeraldAccent text-white font-bold uppercase tracking-widest px-3 py-1 rounded" id="grocery-multiplier-badge">x7 Days Prep</span>
+                    </div>
+
+                    <div id="grocery-items-container" class="space-y-3 mb-8">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-stoneNeutral-200">
+                        <h3 class="text-lg font-bold text-stoneNeutral-900 mb-4">Sequential Prep &amp; Cooking Guide</h3>
+                        <p class="text-xs text-stoneNeutral-700 mb-4 italic">Numbers in brackets calculate dynamically based on active selection. Click on any bracket to explore its exact ingredient detail card instantly.</p>
+                        <div id="timeline-container" class="space-y-4 text-sm">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: CALENDAR / MEAL TIMING -->
+        <section id="calendar" class="tab-content">
+            <div class="mb-6 max-w-4xl">
+                <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Daily Meal Timing</h2>
+                <p class="text-stoneNeutral-700 leading-relaxed">
+                    Your meals placed at <b>optimal eating times</b> for the day. Set your wake, gym (2-hour session), and sleep
+                    times — or check <b>No gym today</b> — and the schedule recalculates: breakfast shortly after waking, a light
+                    pre-gym snack, a protein-forward dinner after lifting, and dessert with a buffer before bed.
+                </p>
+            </div>
+            <div id="schedule-container" class="space-y-4">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/packaging.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
