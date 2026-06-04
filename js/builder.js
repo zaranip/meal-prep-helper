@@ -1,0 +1,431 @@
+/* "Add Recipe" tab — Supabase + USDA backend, integrated into index.html.
+ *
+ * Loads AFTER data.js / app.js, so it shares their globals (recipes,
+ * customSelections, updateTabs, renderRecipeScaler, activeTab...). It only ADDS
+ * to the app: USDA-sourced custom recipes are merged into the `recipes` global
+ * (keys prefixed 'sb_') so they show in the Recipes tab and dashboard dropdowns.
+ *
+ * Access model: PUBLIC READ, YOU-ONLY WRITE. Search + viewing work for everyone;
+ * save/edit/delete require sign-in (enforced by RLS). Degrades gracefully: if
+ * Supabase is unreachable, the rest of the app is untouched. */
+(function () {
+    'use strict';
+
+    var cfg = window.SUPABASE_CONFIG || {};
+    var configured = cfg.url && cfg.anonKey &&
+        cfg.url.indexOf('YOUR-PROJECT-ID') === -1 && cfg.anonKey.indexOf('YOUR-PUBLIC') === -1;
+    var sbLib = window.supabase;
+    var sb = (configured && sbLib && sbLib.createClient) ? sbLib.createClient(cfg.url, cfg.anonKey) : null;
+
+    // ---- state -------------------------------------------------------------
+    var signedIn = false;
+    var editingId = null;       // sb recipe id being edited, or null
+    var draft = [];             // [{ fdcId, name, dataType, per:{calories,protein,fat,carbs,fiber}, grams }]
+    var savedRaw = [];          // raw sb recipes (with joins) for edit/delete
+
+    // ---- helpers -----------------------------------------------------------
+    function $(id) { return document.getElementById(id); }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
+    function r1(v) { return Math.round(v * 10) / 10; }
+    function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+    function flash(el, msg, ok) {
+        if (!el) return;
+        el.textContent = msg || '';
+        el.className = 'text-xs mt-2 text-center font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent');
+    }
+
+    // ---- edge function call with REAL error messages ----------------------
+    async function invokeFn(body) {
+        var res = await sb.functions.invoke('usda-proxy', { body: body });
+        if (res.error) {
+            var detail = '';
+            var status = '';
+            var ctx = res.error.context;
+            if (ctx) {
+                status = ctx.status || '';
+                try { var j = await ctx.json(); detail = j.error || j.message || j.msg || JSON.stringify(j); }
+                catch (e) { try { detail = await ctx.text(); } catch (e2) { /* ignore */ } }
+            }
+            throw new Error((status ? '(' + status + ') ' : '') + (detail || res.error.message || 'Edge function error'));
+        }
+        if (res.data && res.data.error) throw new Error(res.data.error);
+        return res.data;
+    }
+
+    // ---- macro math --------------------------------------------------------
+    function totals() {
+        var t = { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
+        draft.forEach(function (d) {
+            var f = (Number(d.grams) || 0) / 100, p = d.per || {};
+            t.cal += (+p.calories || 0) * f;
+            t.prot += (+p.protein || 0) * f;
+            t.fat += (+p.fat || 0) * f;
+            t.fib += (+p.fiber || 0) * f;
+            t.carb += (+p.carbs || 0) * f;
+        });
+        return t;
+    }
+    function cell(label, val) {
+        return '<div class="bg-stoneNeutral-50 rounded p-1.5 border border-stoneNeutral-200">' +
+            '<span class="block text-[9px] text-stoneNeutral-700">' + label + '</span>' + esc(val) + '</div>';
+    }
+
+    // ---- map sb recipe -> app recipe shape & register globally ------------
+    var MEAL_TO_DROPDOWN = { breakfast: 'breakfast-mix', lunch: 'lunch-mix', dinner: 'dinner-mix', dessert: 'dessert-mix', snack: 'dessert-mix' };
+
+    function sbToApp(r) {
+        var ings = (r.recipe_ingredients || []).map(function (ri) {
+            return { name: (ri.ingredients && ri.ingredients.name) || 'Ingredient', amount: Number(ri.weight_in_grams) || 0, unit: 'g', _p: ri.ingredients || {} };
+        });
+        var bm = { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
+        ings.forEach(function (i) {
+            var f = i.amount / 100, p = i._p;
+            bm.cal += (+p.calories_per_100g || 0) * f;
+            bm.prot += (+p.protein_per_100g || 0) * f;
+            bm.fat += (+p.fat_per_100g || 0) * f;
+            bm.fib += (+p.fiber_per_100g || 0) * f;
+            bm.carb += (+p.carbs_per_100g || 0) * f;
+        });
+        return {
+            id: 'sb_' + r.id, sbId: r.id, custom: true, mealType: r.meal_type || 'snack',
+            title: r.title, desc: 'Custom recipe — USDA estimates. Confirm against packages.',
+            type: cap(r.meal_type || 'Snack'),
+            baseMacros: { cal: Math.round(bm.cal), prot: r1(bm.prot), fat: r1(bm.fat), fib: r1(bm.fib), carb: r1(bm.carb) },
+            ingredients: ings.map(function (i) { return { name: i.name, amount: Math.round(i.amount * 10) / 10, unit: 'g' }; }),
+            steps: r.instructions || [],
+            freezerTips: r.freezer_tips || 'No freezer notes for this custom recipe.'
+        };
+    }
+    function registerRecipe(app) {
+        if (typeof recipes === 'undefined') return;
+        recipes[app.id] = app;
+        var selId = MEAL_TO_DROPDOWN[app.mealType] || 'dessert-mix';
+        var sel = $(selId);
+        if (sel && !sel.querySelector('option[value="' + app.id + '"]')) {
+            var opt = document.createElement('option');
+            opt.value = app.id;
+            opt.textContent = app.title + ' (' + Math.round(app.baseMacros.cal) + ' kcal)';
+            sel.appendChild(opt);
+        }
+    }
+    function unregisterAllSb() {
+        if (typeof recipes === 'undefined') return;
+        Object.keys(recipes).filter(function (k) { return k.indexOf('sb_') === 0; }).forEach(function (k) {
+            // If a removed custom recipe is currently selected anywhere, fall back to a stock one.
+            var fallback = 'bagel';
+            if (typeof selectedRecipeId !== 'undefined' && selectedRecipeId === k) selectedRecipeId = fallback;
+            if (typeof customSelections !== 'undefined') {
+                ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(function (role) {
+                    if (customSelections[role] === k) customSelections[role] = fallback;
+                });
+            }
+            delete recipes[k];
+        });
+        document.querySelectorAll('#breakfast-mix option, #lunch-mix option, #dinner-mix option, #dessert-mix option')
+            .forEach(function (o) { if (o.value.indexOf('sb_') === 0) o.remove(); });
+    }
+    function refreshAppViews() {
+        if (typeof updateTabs === 'function') {
+            try { updateTabs(); } catch (e) { /* keep going */ }
+        }
+    }
+
+    // ---- auth UI -----------------------------------------------------------
+    function renderAuth(session) {
+        signedIn = !!session;
+        var area = $('builder-auth');
+        if (!area) return;
+        if (!sb) { area.innerHTML = '<span class="text-amberAccent font-semibold">Backend not configured</span>'; return; }
+        if (signedIn) {
+            area.innerHTML = '<span class="text-stoneNeutral-700">Signed in: ' + esc(session.user.email) + '</span>' +
+                '<button id="b-signout" class="bg-stoneNeutral-200 text-stoneNeutral-800 font-semibold px-3 py-1.5 rounded hover:bg-stoneNeutral-300">Sign out</button>';
+            $('b-signout').addEventListener('click', function () { sb.auth.signOut(); });
+        } else {
+            area.innerHTML =
+                '<input id="b-email" type="email" placeholder="email" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 w-36">' +
+                '<input id="b-pass" type="password" placeholder="password" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 w-28">' +
+                '<button id="b-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
+                '<span id="b-login-msg" class="text-amberAccent"></span>';
+            $('b-signin').addEventListener('click', async function () {
+                var r = await sb.auth.signInWithPassword({ email: $('b-email').value.trim(), password: $('b-pass').value });
+                if (r.error) $('b-login-msg').textContent = r.error.message;
+            });
+        }
+        syncWriteUI();
+        renderSaved();
+    }
+    function syncWriteUI() {
+        var save = $('b-save');
+        if (save) {
+            save.disabled = !signedIn;
+            save.classList.toggle('opacity-40', !signedIn);
+            save.classList.toggle('cursor-not-allowed', !signedIn);
+        }
+        document.querySelectorAll('.b-add-btn').forEach(function (b) {
+            b.disabled = false; // adding to the draft is allowed signed-out; only SAVING needs auth
+        });
+    }
+
+    // ---- USDA search + add to draft ---------------------------------------
+    async function search(q) {
+        var data = await invokeFn({ action: 'search', query: q });
+        return (data && data.results) || [];
+    }
+    function renderResults(results) {
+        var box = $('b-usda-results');
+        if (!results.length) { box.innerHTML = '<p class="text-xs text-stoneNeutral-700">No matches.</p>'; return; }
+        box.innerHTML = '';
+        results.forEach(function (r) {
+            var div = document.createElement('div');
+            div.className = 'flex justify-between items-start gap-2 border border-stoneNeutral-200 rounded-lg p-2.5';
+            div.innerHTML = '<div><p class="text-sm font-semibold text-stoneNeutral-900">' + esc(r.description) + '</p>' +
+                '<p class="text-[11px] text-stoneNeutral-700">' + esc(r.dataType || '') + (r.brandOwner ? ' &bull; ' + esc(r.brandOwner) : '') + '</p></div>' +
+                '<button class="b-add-btn whitespace-nowrap bg-stoneNeutral-200 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded hover:bg-stoneNeutral-300">Add</button>';
+            div.querySelector('.b-add-btn').addEventListener('click', function () { addIngredient(r, div.querySelector('.b-add-btn')); });
+            box.appendChild(div);
+        });
+    }
+    async function addIngredient(r, btn) {
+        var orig = btn.textContent; btn.textContent = '…'; btn.disabled = true;
+        try {
+            var n = await invokeFn({ action: 'fetchNutrients', fdcId: r.fdcId });
+            draft.push({
+                fdcId: n.usda_fdc_id, name: n.name, dataType: n.data_type,
+                per: { calories: n.calories, protein: n.protein, fat: n.fat, carbs: n.carbs, fiber: n.fiber },
+                grams: 100
+            });
+            renderDraft();
+            btn.textContent = 'Added'; setTimeout(function () { btn.textContent = orig; btn.disabled = false; }, 900);
+        } catch (e) {
+            btn.textContent = orig; btn.disabled = false;
+            flash($('b-save-msg'), e.message, false);
+        }
+    }
+
+    // ---- draft list + live totals -----------------------------------------
+    // Macros a single draft item contributes at its current gram weight.
+    function rowMacros(d) {
+        var f = (Number(d.grams) || 0) / 100, p = d.per || {};
+        return {
+            cal: (+p.calories || 0) * f, prot: (+p.protein || 0) * f, fat: (+p.fat || 0) * f,
+            fib: (+p.fiber || 0) * f, carb: (+p.carbs || 0) * f
+        };
+    }
+    function rowMacroHtml(d) {
+        var m = rowMacros(d);
+        return '<span class="font-semibold text-stoneNeutral-800">' + Math.round(m.cal) + ' kcal</span>' +
+            ' · ' + r1(m.prot) + 'g P · ' + r1(m.fat) + 'g F · ' + r1(m.carb) + 'g C · ' + r1(m.fib) + 'g fib';
+    }
+    function paintTotals() {
+        var t = totals();
+        $('b-totals').innerHTML =
+            cell('CAL', Math.round(t.cal)) + cell('PRO', r1(t.prot) + 'g') + cell('FAT', r1(t.fat) + 'g') +
+            cell('CARB', r1(t.carb) + 'g') + cell('FIB', r1(t.fib) + 'g');
+    }
+    function renderDraft() {
+        paintTotals();
+        var ul = $('b-draft-list');
+        if (!draft.length) { ul.innerHTML = '<li class="text-xs text-stoneNeutral-700 italic">Search and add ingredients to build the recipe.</li>'; return; }
+        ul.innerHTML = '';
+        draft.forEach(function (d, idx) {
+            var li = document.createElement('li');
+            li.className = 'border-b border-stoneNeutral-100 py-1.5';
+            li.innerHTML =
+                '<div class="flex justify-between items-center gap-2">' +
+                    '<span class="flex-1 text-stoneNeutral-800">' + esc(d.name) + ' <span class="text-[10px] text-amberAccent">est.</span></span>' +
+                    '<input type="number" min="0" step="1" value="' + d.grams + '" class="b-grams w-16 bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-1.5 py-1 text-xs text-right">' +
+                    '<span class="text-[10px] text-stoneNeutral-700">g</span>' +
+                    '<button class="b-del text-amberAccent font-bold px-1" title="Remove">&times;</button>' +
+                '</div>' +
+                '<div class="b-row-macros text-[10px] text-stoneNeutral-700 font-mono mt-0.5 pl-0.5">' + rowMacroHtml(d) + '</div>';
+            li.querySelector('.b-grams').addEventListener('input', function (e) {
+                d.grams = parseFloat(e.target.value) || 0;
+                li.querySelector('.b-row-macros').innerHTML = rowMacroHtml(d); // this ingredient's contribution
+                paintTotals();                                                // and the recipe total
+            });
+            li.querySelector('.b-del').addEventListener('click', function () { draft.splice(idx, 1); renderDraft(); });
+            ul.appendChild(li);
+        });
+    }
+
+    // ---- save / update -----------------------------------------------------
+    async function save() {
+        if (!signedIn) { flash($('b-save-msg'), 'Sign in to save.', false); return; }
+        var title = $('b-title').value.trim();
+        if (!title) { flash($('b-save-msg'), 'Title is required.', false); return; }
+        if (!draft.length) { flash($('b-save-msg'), 'Add at least one ingredient.', false); return; }
+        flash($('b-save-msg'), 'Saving…', true);
+        try {
+            // 1. upsert each ingredient, collect ids (parallel)
+            var ids = await Promise.all(draft.map(async function (d) {
+                var row = {
+                    usda_fdc_id: d.fdcId, name: d.name,
+                    calories_per_100g: d.per.calories, protein_per_100g: d.per.protein,
+                    fat_per_100g: d.per.fat, carbs_per_100g: d.per.carbs, fiber_per_100g: d.per.fiber,
+                    data_type: d.dataType, is_estimate: true, package_unit: 'g'
+                };
+                var res = await sb.from('ingredients').upsert([row], { onConflict: 'usda_fdc_id' }).select('id').single();
+                if (res.error) throw new Error(res.error.message);
+                return res.data.id;
+            }));
+
+            // 2. recipe metadata
+            var meta = {
+                title: title, meal_type: $('b-meal-type').value,
+                base_servings: parseFloat($('b-base-servings').value) || 1,
+                freezer_tips: $('b-freezer').value.trim() || null,
+                instructions: $('b-instructions').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
+            };
+
+            var recipeId;
+            if (editingId) {
+                var u = await sb.from('recipes').update(meta).eq('id', editingId).select('id').single();
+                if (u.error) throw new Error(u.error.message);
+                recipeId = editingId;
+                var del = await sb.from('recipe_ingredients').delete().eq('recipe_id', recipeId);
+                if (del.error) throw new Error(del.error.message);
+            } else {
+                var ins = await sb.from('recipes').insert([meta]).select('id').single();
+                if (ins.error) throw new Error(ins.error.message);
+                recipeId = ins.data.id;
+            }
+
+            // 3. links
+            var links = draft.map(function (d, i) {
+                return { recipe_id: recipeId, ingredient_id: ids[i], quantity_value: d.grams, quantity_unit: 'g', weight_in_grams: d.grams };
+            });
+            var lk = await sb.from('recipe_ingredients').insert(links);
+            if (lk.error) throw new Error(lk.error.message);
+
+            flash($('b-save-msg'), editingId ? 'Recipe updated.' : 'Recipe saved & added to your Recipes.', true);
+            resetForm();
+            await load();
+        } catch (e) {
+            flash($('b-save-msg'), e.message, false);
+        }
+    }
+
+    function resetForm() {
+        editingId = null; draft = [];
+        $('b-title').value = ''; $('b-instructions').value = ''; $('b-freezer').value = '';
+        $('b-base-servings').value = '1'; $('b-meal-type').value = 'breakfast';
+        $('builder-form-title').textContent = 'New recipe';
+        $('b-save').textContent = 'Save recipe';
+        $('builder-cancel-edit').classList.add('hidden');
+        renderDraft();
+    }
+
+    // ---- saved list (edit / delete) ---------------------------------------
+    function renderSaved() {
+        var box = $('b-saved-list');
+        if (!box) return;
+        if (!savedRaw.length) { box.innerHTML = '<p class="text-xs text-stoneNeutral-700">No custom recipes yet.</p>'; return; }
+        box.innerHTML = '';
+        savedRaw.forEach(function (r) {
+            var div = document.createElement('div');
+            div.className = 'flex justify-between items-center gap-2 border border-stoneNeutral-200 rounded-lg p-2.5';
+            var controls = signedIn
+                ? '<button class="b-edit text-skyAccent font-semibold hover:underline">Edit</button>' +
+                  '<button class="b-delete text-amberAccent font-semibold hover:underline">Delete</button>'
+                : '<span class="text-[10px] text-stoneNeutral-700 italic">sign in to edit</span>';
+            div.innerHTML = '<span class="text-stoneNeutral-800 font-medium">' + esc(r.title) +
+                '<span class="block text-[10px] uppercase tracking-wider text-stoneNeutral-700">' + esc(r.meal_type || '') + '</span></span>' +
+                '<span class="flex items-center gap-3 text-xs">' + controls + '</span>';
+            if (signedIn) {
+                div.querySelector('.b-edit').addEventListener('click', function () { startEdit(r); });
+                div.querySelector('.b-delete').addEventListener('click', function () { remove(r); });
+            }
+            box.appendChild(div);
+        });
+    }
+    function startEdit(r) {
+        editingId = r.id;
+        $('b-title').value = r.title || '';
+        $('b-meal-type').value = r.meal_type || 'breakfast';
+        $('b-base-servings').value = r.base_servings || 1;
+        $('b-freezer').value = r.freezer_tips || '';
+        $('b-instructions').value = (r.instructions || []).join('\n');
+        draft = (r.recipe_ingredients || []).map(function (ri) {
+            var p = ri.ingredients || {};
+            return {
+                fdcId: p.usda_fdc_id, name: p.name, dataType: p.data_type,
+                per: { calories: +p.calories_per_100g, protein: +p.protein_per_100g, fat: +p.fat_per_100g, carbs: +p.carbs_per_100g, fiber: +p.fiber_per_100g },
+                grams: Number(ri.weight_in_grams) || 0
+            };
+        });
+        $('builder-form-title').textContent = 'Editing: ' + r.title;
+        $('b-save').textContent = 'Update recipe';
+        $('builder-cancel-edit').classList.remove('hidden');
+        renderDraft();
+        $('builder-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    async function remove(r) {
+        if (!signedIn) return;
+        var d = await sb.from('recipes').delete().eq('id', r.id);
+        if (d.error) { flash($('b-save-msg'), d.error.message, false); return; }
+        if (editingId === r.id) resetForm();
+        flash($('b-save-msg'), 'Recipe deleted.', true);
+        await load();
+    }
+
+    // ---- load all recipes from Supabase -----------------------------------
+    var SELECT = 'id,title,instructions,base_servings,freezer_tips,meal_type,' +
+        'recipe_ingredients(quantity_value,quantity_unit,weight_in_grams,' +
+        'ingredients(name,usda_fdc_id,data_type,calories_per_100g,protein_per_100g,fat_per_100g,carbs_per_100g,fiber_per_100g,package_unit,package_weight_g,is_estimate))';
+
+    async function load() {
+        if (!sb) return;
+        var res = await sb.from('recipes').select(SELECT).order('created_at', { ascending: true });
+        if (res.error) { console.error('Load recipes failed:', res.error.message); return; }
+        savedRaw = res.data || [];
+        unregisterAllSb();
+        savedRaw.forEach(function (r) { registerRecipe(sbToApp(r)); });
+        renderSaved();
+        refreshAppViews();
+    }
+
+    // ---- boot --------------------------------------------------------------
+    function wire() {
+        $('b-usda-search').addEventListener('click', async function () {
+            var q = $('b-usda-query').value.trim();
+            if (!q) return;
+            $('b-usda-results').innerHTML = '<p class="text-xs text-stoneNeutral-700">Searching…</p>';
+            try { renderResults(await search(q)); syncWriteUI(); }
+            catch (e) { $('b-usda-results').innerHTML = '<p class="text-xs text-amberAccent">' + esc(e.message) + '</p>'; }
+        });
+        $('b-usda-query').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('b-usda-search').click(); });
+        $('b-save').addEventListener('click', save);
+        $('builder-cancel-edit').addEventListener('click', resetForm);
+    }
+
+    function showConfigWarning(msg) {
+        var w = $('builder-config-warning');
+        if (!w) return;
+        w.classList.remove('hidden');
+        w.innerHTML = msg;
+    }
+
+    // Guard: the Add Recipe tab must never break the rest of the app.
+    try {
+        if (!configured) {
+            showConfigWarning('<strong>Backend not configured.</strong> Edit <code class="bg-amber-100 px-1 rounded">js/config.js</code> with your Supabase URL &amp; publishable key, then follow <code class="bg-amber-100 px-1 rounded">BACKEND_SETUP.md</code>.');
+            return;
+        }
+        if (!sb) {
+            showConfigWarning('<strong>Supabase library unavailable.</strong> The Add Recipe tab needs an internet connection; the rest of the dashboard works offline.');
+            return;
+        }
+        wire();
+        renderDraft();
+        sb.auth.getSession().then(function (r) { renderAuth(r.data.session); });
+        sb.auth.onAuthStateChange(function (_e, session) { renderAuth(session); });
+        load();
+    } catch (e) {
+        console.error('Add Recipe tab init failed:', e);
+        showConfigWarning('<strong>Add Recipe tab failed to start.</strong> ' + esc(e.message) + ' — the rest of the app is unaffected.');
+    }
+})();

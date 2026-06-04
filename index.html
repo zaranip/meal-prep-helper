@@ -66,10 +66,11 @@
                 </div>
             </div>
             <div class="flex gap-2 bg-stoneNeutral-100 p-1.5 rounded-lg border border-stoneNeutral-200 text-sm">
-                <button data-tab="dashboard" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-800 bg-white shadow-sm transition-all">Daily Dashboard</button>
-                <button data-tab="recipes" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Recipe Scaler</button>
-                <button data-tab="prep" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Sunday Planner</button>
+                <button data-tab="dashboard" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-800 bg-white shadow-sm transition-all">Dashboard</button>
+                <button data-tab="recipes" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Recipes</button>
+                <button data-tab="prep" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Planner</button>
                 <button data-tab="calendar" class="tab-btn px-4 py-2 rounded-md font-medium text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">Calendar</button>
+                <button data-tab="builder" title="Add Recipe" aria-label="Add Recipe" class="tab-btn px-3 py-2 rounded-md font-bold text-lg leading-none text-stoneNeutral-700 hover:text-stoneNeutral-900 transition-all">+</button>
             </div>
         </div>
     </header>
@@ -241,7 +242,7 @@
                     <div class="bg-stoneNeutral-100 p-6 rounded-xl border border-stoneNeutral-200">
                         <h4 class="text-xs font-bold text-stoneNeutral-900 uppercase tracking-wider mb-2">Active Multiplier Logic</h4>
                         <p class="text-xs text-stoneNeutral-700 leading-relaxed">
-                            For ease of kitchen management, **1.0x (Plan Base)** in the Recipe Scaler acts as a unified master switch. It automatically renders the exact caloric boundaries of whichever breakfast, lunch, or dinner you selected on the mix-and-match board.
+                            For ease of kitchen management, <b>1.0x (Plan Base)</b> in the Recipe Scaler acts as a unified master switch. It automatically renders the exact caloric boundaries of whichever breakfast, lunch, or dinner you selected on the mix-and-match board.
                         </p>
                     </div>
                 </div>
@@ -416,9 +417,9 @@
                         <h4 class="font-bold text-lg mb-2">Zero-Waste carryover checklist</h4>
                         <p class="text-xs opacity-90 leading-relaxed mb-4">These items keep fresh inside sealed containers and carry over securely between Sunday rotations:</p>
                         <ul class="text-xs space-y-2 opacity-95">
-                            <li>&bull; **Kirkland Liquid Egg Whites**: Buy the bulk multi-packs. Keeps safely refrigerated until ready to waffle or scramble.</li>
-                            <li>&bull; **Extra-Firm Tofu**: Sealed water tubs maintain texture for weeks.</li>
-                            <li>&bull; **White/Black Rice Grains**: Keep in dry airtight pantry containers.</li>
+                            <li>&bull; <b>Kirkland Liquid Egg Whites</b>: Buy the bulk multi-packs. Keeps safely refrigerated until ready to waffle or scramble.</li>
+                            <li>&bull; <b>Extra-Firm Tofu</b>: Sealed water tubs maintain texture for weeks.</li>
+                            <li>&bull; <b>White/Black Rice Grains</b>: Keep in dry airtight pantry containers.</li>
                         </ul>
                     </div>
                 </div>
@@ -460,10 +461,95 @@
             </div>
         </section>
 
+        <!-- TAB 5: ADD RECIPE (Supabase + USDA) -->
+        <section id="builder" class="tab-content">
+            <div class="mb-6 max-w-4xl flex flex-wrap justify-between items-start gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Add a Recipe
+                        <span class="text-[10px] align-middle uppercase font-black tracking-wider bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">USDA &middot; estimates</span>
+                    </h2>
+                    <p class="text-stoneNeutral-700 leading-relaxed text-sm">
+                        Search ingredients from USDA FoodData Central, add them with a gram weight, and watch the totals build live.
+                        Saved recipes join your <b>Recipes</b> list and the dashboard dropdowns. USDA macros are estimates &mdash; confirm against the package.
+                        <b>Sign in to save, edit, or delete.</b>
+                    </p>
+                </div>
+                <div id="builder-auth" class="flex items-center gap-2 text-xs flex-wrap justify-end"></div>
+            </div>
+
+            <div id="builder-config-warning" class="hidden mb-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg p-3 text-sm"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- LEFT: recipe form + ingredient search -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white p-5 rounded-xl border border-stoneNeutral-200 shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-stoneNeutral-900" id="builder-form-title">New recipe</h3>
+                            <button id="builder-cancel-edit" class="hidden text-xs font-semibold text-amberAccent hover:underline">Cancel edit</button>
+                        </div>
+                        <div class="grid sm:grid-cols-2 gap-3 mb-3">
+                            <label class="text-xs font-semibold text-stoneNeutral-700">Title
+                                <input id="b-title" type="text" class="mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm">
+                            </label>
+                            <label class="text-xs font-semibold text-stoneNeutral-700">Meal type
+                                <select id="b-meal-type" class="mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm">
+                                    <option value="breakfast">Breakfast</option>
+                                    <option value="lunch">Lunch</option>
+                                    <option value="dinner">Dinner</option>
+                                    <option value="dessert">Dessert</option>
+                                    <option value="snack">Snack</option>
+                                </select>
+                            </label>
+                            <label class="text-xs font-semibold text-stoneNeutral-700">Base servings
+                                <input id="b-base-servings" type="number" min="0.25" step="0.25" value="1" class="mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm">
+                            </label>
+                            <label class="text-xs font-semibold text-stoneNeutral-700">Freezer tips (optional)
+                                <input id="b-freezer" type="text" class="mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm">
+                            </label>
+                        </div>
+                        <label class="text-xs font-semibold text-stoneNeutral-700 block">Instructions (one step per line)
+                            <textarea id="b-instructions" rows="3" class="mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm"></textarea>
+                        </label>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl border border-stoneNeutral-200 shadow-sm">
+                        <h3 class="font-bold text-stoneNeutral-900 mb-2">Find &amp; add ingredients</h3>
+                        <div class="flex gap-2">
+                            <input id="b-usda-query" type="text" placeholder="e.g. liquid egg whites"
+                                class="flex-1 bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emeraldAccent">
+                            <button id="b-usda-search" class="bg-skyAccent text-white font-semibold text-sm px-4 py-2 rounded hover:opacity-90">Search</button>
+                        </div>
+                        <div id="b-usda-results" class="mt-3 space-y-2 max-h-72 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: live recipe being built -->
+                <div class="space-y-6">
+                    <div class="bg-white p-5 rounded-xl border border-stoneNeutral-200 shadow-sm sticky top-24">
+                        <h3 class="font-bold text-stoneNeutral-900 mb-2">This recipe</h3>
+                        <div class="grid grid-cols-5 gap-1.5 text-center text-xs font-mono font-bold mb-3" id="b-totals">
+                            <!-- filled by JS -->
+                        </div>
+                        <ul id="b-draft-list" class="space-y-1 text-sm mb-3"></ul>
+                        <button id="b-save" class="w-full bg-emeraldAccent text-white font-semibold text-sm px-5 py-2.5 rounded hover:opacity-90">Save recipe</button>
+                        <p id="b-save-msg" class="text-xs mt-2 text-center"></p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-stoneNeutral-200 shadow-sm">
+                        <h3 class="font-bold text-stoneNeutral-900 mb-2">Saved custom recipes</h3>
+                        <div id="b-saved-list" class="space-y-2 text-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </div>
 
     <script src="js/data.js"></script>
     <script src="js/packaging.js"></script>
     <script src="js/app.js"></script>
+    <!-- Backend (Add Recipe tab) — loads after the core app; degrades gracefully if offline. -->
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/builder.js"></script>
 </body>
 </html>
