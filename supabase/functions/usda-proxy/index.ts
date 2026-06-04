@@ -102,9 +102,32 @@ serve(async (req) => {
     // ---- Action: fetchNutrients -------------------------------------------
     if (action === "fetchNutrients") {
       if (!fdcId) return json({ error: "Missing fdcId." }, 400);
-      const res = await fetch(`${BASE}/food/${fdcId}?api_key=${apiKey}`);
-      if (!res.ok) return json({ error: `USDA lookup failed (${res.status}).` }, 502);
-      const food = await res.json();
+
+      // USDA's search index sometimes returns fdcIds whose detail record 404s on
+      // /food/{id}. Try the single endpoint, then fall back to the batch endpoint.
+      let food: any = null;
+      const single = await fetch(`${BASE}/food/${fdcId}?api_key=${apiKey}`);
+      if (single.ok) {
+        food = await single.json();
+      } else if (single.status === 404) {
+        const plural = await fetch(`${BASE}/foods?fdcIds=${fdcId}&api_key=${apiKey}`);
+        if (plural.ok) {
+          const arr = await plural.json();
+          if (Array.isArray(arr) && arr[0] && arr[0].fdcId) food = arr[0];
+        }
+      } else {
+        return json({ error: `USDA lookup failed (${single.status}).` }, 502);
+      }
+
+      // Genuinely no retrievable detail for this item — return a friendly,
+      // non-error status so the client can guide the user to another result.
+      if (!food || !food.fdcId) {
+        return json({
+          unavailable: true,
+          error: "USDA has no detailed nutrition record for this item — please pick a different search result.",
+        });
+      }
+
       const list = food.foodNutrients ?? [];
 
       let calories = find(list, N.energyKcal);

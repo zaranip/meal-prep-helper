@@ -181,18 +181,32 @@
         box.innerHTML = '';
         results.forEach(function (r) {
             var div = document.createElement('div');
-            div.className = 'flex justify-between items-start gap-2 border border-stoneNeutral-200 rounded-lg p-2.5';
-            div.innerHTML = '<div><p class="text-sm font-semibold text-stoneNeutral-900">' + esc(r.description) + '</p>' +
-                '<p class="text-[11px] text-stoneNeutral-700">' + esc(r.dataType || '') + (r.brandOwner ? ' &bull; ' + esc(r.brandOwner) : '') + '</p></div>' +
-                '<button class="b-add-btn whitespace-nowrap bg-stoneNeutral-200 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded hover:bg-stoneNeutral-300">Add</button>';
-            div.querySelector('.b-add-btn').addEventListener('click', function () { addIngredient(r, div.querySelector('.b-add-btn')); });
+            div.className = 'border border-stoneNeutral-200 rounded-lg p-2.5';
+            div.innerHTML =
+                '<div class="flex justify-between items-start gap-2">' +
+                    '<div><p class="text-sm font-semibold text-stoneNeutral-900">' + esc(r.description) + '</p>' +
+                    '<p class="text-[11px] text-stoneNeutral-700">' + esc(r.dataType || '') + (r.brandOwner ? ' &bull; ' + esc(r.brandOwner) : '') + '</p></div>' +
+                    '<button class="b-add-btn whitespace-nowrap bg-stoneNeutral-200 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded hover:bg-stoneNeutral-300">Add</button>' +
+                '</div>' +
+                '<div class="b-row-msg text-[11px] mt-1"></div>';
+            div.querySelector('.b-add-btn').addEventListener('click', function () {
+                addIngredient(r, div.querySelector('.b-add-btn'), div.querySelector('.b-row-msg'));
+            });
             box.appendChild(div);
         });
     }
-    async function addIngredient(r, btn) {
+    // Turn a USDA-detail failure into something actionable for the user.
+    function friendlyFetchError(msg) {
+        if (/no detailed nutrition record/i.test(msg)) return msg; // already friendly (new function)
+        if (/404/.test(msg)) return 'USDA has no detailed record for this item — try a different result (Branded items are usually complete).';
+        return msg;
+    }
+    async function addIngredient(r, btn, msgEl) {
         var orig = btn.textContent; btn.textContent = '…'; btn.disabled = true;
+        if (msgEl) msgEl.textContent = '';
         try {
             var n = await invokeFn({ action: 'fetchNutrients', fdcId: r.fdcId });
+            if (n && n.unavailable) throw new Error(n.error || 'No nutrition detail available.');
             draft.push({
                 fdcId: n.usda_fdc_id, name: n.name, dataType: n.data_type,
                 per: { calories: n.calories, protein: n.protein, fat: n.fat, carbs: n.carbs, fiber: n.fiber },
@@ -202,7 +216,9 @@
             btn.textContent = 'Added'; setTimeout(function () { btn.textContent = orig; btn.disabled = false; }, 900);
         } catch (e) {
             btn.textContent = orig; btn.disabled = false;
-            flash($('b-save-msg'), e.message, false);
+            var friendly = friendlyFetchError(e.message || 'Lookup failed');
+            if (msgEl) { msgEl.textContent = friendly; msgEl.className = 'b-row-msg text-[11px] mt-1 text-amberAccent font-semibold'; }
+            else flash($('b-save-msg'), friendly, false);
         }
     }
 
