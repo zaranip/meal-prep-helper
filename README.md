@@ -42,7 +42,7 @@ The app has four tabs:
 
 This is a static page using classic (non-module) scripts, so it works straight from the filesystem. Pick whichever is easiest:
 
-1. **Double-click** `meal_prep_dashboard.html` in your file explorer — it opens in your default browser.
+1. **Double-click** `index.html` in your file explorer — it opens in your default browser.
 2. **VS Code → Run Task… → "Open Dashboard in Browser"** (provided in `.vscode/tasks.json`).
 3. **VS Code → Run and Debug → "Open Dashboard (Edge)"** or **"(Chrome)"** (provided in `.vscode/launch.json`; launches an isolated browser instance).
 4. Any static server (e.g. the **Live Preview** / **Live Server** VS Code extension, or `npx serve`).
@@ -55,7 +55,7 @@ This is a static page using classic (non-module) scripts, so it works straight f
 
 ```
 meal-prep-planner/
-├── meal_prep_dashboard.html   # markup for all four tabs (structure only)
+├── index.html                 # markup for all four tabs (structure only)
 ├── css/
 │   └── styles.css             # custom styles (most styling is Tailwind utility classes)
 ├── js/
@@ -92,7 +92,7 @@ myRecipe: {
   freezerTips: 'Storage/reheat notes.'
 }
 ```
-Then add it to the matching dropdown(s) in `meal_prep_dashboard.html` (`breakfast-mix`, `lunch-mix`, `dinner-mix`, or `dessert-mix`) as an `<option value="myRecipe">…</option>`. Macros are **per serving**; the app scales up from there.
+Then add it to the matching dropdown(s) in `index.html` (`breakfast-mix`, `lunch-mix`, `dinner-mix`, or `dessert-mix`) as an `<option value="myRecipe">…</option>`. Macros are **per serving**; the app scales up from there.
 
 ### Add an ingredient (`ingredientDB`)
 Used by the deep-dive and the whole-units macro math.
