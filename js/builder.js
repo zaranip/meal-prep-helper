@@ -95,7 +95,18 @@
             title: r.title, desc: 'Custom recipe — USDA estimates. Confirm against packages.',
             type: cap(r.meal_type || 'Snack'),
             baseMacros: { cal: Math.round(bm.cal), prot: r1(bm.prot), fat: r1(bm.fat), fib: r1(bm.fib), carb: r1(bm.carb) },
-            ingredients: ings.map(function (i) { return { name: i.name, amount: Math.round(i.amount * 10) / 10, unit: 'g' }; }),
+            // _m100 = per-100g macros, so the Recipes-tab scaler can recompute macros
+            // when amounts are edited (the scaler's ingredientDB has no custom items).
+            ingredients: ings.map(function (i) {
+                var p = i._p || {};
+                return {
+                    name: i.name, amount: Math.round(i.amount * 10) / 10, unit: 'g',
+                    _m100: {
+                        cal: +p.calories_per_100g || 0, prot: +p.protein_per_100g || 0, fat: +p.fat_per_100g || 0,
+                        fib: +p.fiber_per_100g || 0, carb: +p.carbs_per_100g || 0
+                    }
+                };
+            }),
             steps: r.instructions || [],
             freezerTips: r.freezer_tips || 'No freezer notes for this custom recipe.'
         };

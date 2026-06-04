@@ -347,6 +347,122 @@ function updateTabs() {
             });
         }
 
+        // ===== Recipe inline editing (scaler) =====================================
+        // Tweak each ingredient's BASE amount and watch macros move live, then Save
+        // (persisted in localStorage for stock recipes) or Revert to the original.
+        // Macros move via the same DELTA method used elsewhere in the app: the verified
+        // baseMacros stay intact and only your edits adjust them.
+        const RECIPE_EDIT_KEY = 'mealPrep.recipeEdits.v1';
+        const pristineRecipes = {};   // id -> deep copy of the ORIGINAL recipe (pre-override)
+        let recipeEditStore = {};     // persisted (stock only): id -> {amounts:[], baseMacros:{}, notes:''}
+        const draftNotes = {};        // in-memory notes per recipe id (until Save)
+
+        function loadRecipeEditStore() { try { return JSON.parse(localStorage.getItem(RECIPE_EDIT_KEY)) || {}; } catch (e) { return {}; } }
+        function persistRecipeEditStore() { try { localStorage.setItem(RECIPE_EDIT_KEY, JSON.stringify(recipeEditStore)); } catch (e) { /* storage off */ } }
+        function deepCopyRecipe(r) { return JSON.parse(JSON.stringify(r)); }
+        function isCustomRecipe(id) { return String(id).indexOf('sb_') === 0; }
+        function snapshotPristine(id) { if (!pristineRecipes[id] && recipes[id]) pristineRecipes[id] = deepCopyRecipe(recipes[id]); }
+
+        // Per-gram macros for an ingredient at `amount` of its unit. Uses inline per-100g
+        // (custom recipes) or the ingredientDB (stock). null => not tracked, can't move macros.
+        function ingMacrosForAmount(ing, amount) {
+            if (ing._m100) {
+                let g = (ing.unit === 'g' || ing.unit === 'grams') ? amount : ingredientGrams(ing.name, amount, ing.unit);
+                if (g == null) g = amount; // custom items are stored in grams
+                const f = g / 100, m = ing._m100;
+                return { cal: m.cal * f, prot: m.prot * f, fat: m.fat * f, fib: m.fib * f, carb: m.carb * f };
+            }
+            const g2 = (ing.unit === 'g' || ing.unit === 'grams') ? amount : ingredientGrams(ing.name, amount, ing.unit);
+            if (g2 == null) return null;
+            return macrosForGrams(ing.name, g2);
+        }
+        function ingTracked(ing) { return ingMacrosForAmount(ing, 1) != null; }
+
+        // The verified baseline edits are measured against: last saved, else the original.
+        function editAnchor(id) {
+            if (recipeEditStore[id]) return recipeEditStore[id];
+            const p = pristineRecipes[id] || recipes[id];
+            return { amounts: p.ingredients.map(function (i) { return i.amount; }), baseMacros: p.baseMacros };
+        }
+        // Recompute recipes[id].baseMacros = anchor.baseMacros + deltas from current amounts.
+        function recomputeBaseMacros(id) {
+            const a = editAnchor(id), out = Object.assign({}, a.baseMacros);
+            recipes[id].ingredients.forEach(function (ing, idx) {
+                const baseAmt = (a.amounts[idx] != null) ? a.amounts[idx] : ing.amount;
+                const now = ingMacrosForAmount(ing, ing.amount), was = ingMacrosForAmount(ing, baseAmt);
+                if (!now || !was) return; // untracked ingredient: leave macros unchanged
+                out.cal += now.cal - was.cal; out.prot += now.prot - was.prot; out.fat += now.fat - was.fat;
+                out.fib += now.fib - was.fib; out.carb += now.carb - was.carb;
+            });
+            recipes[id].baseMacros = {
+                cal: Math.round(out.cal), prot: Math.round(out.prot * 10) / 10, fat: Math.round(out.fat * 10) / 10,
+                fib: Math.round(out.fib * 10) / 10, carb: Math.round(out.carb * 10) / 10
+            };
+        }
+        function recipeNotes(id) { return (draftNotes[id] != null) ? draftNotes[id] : ((recipeEditStore[id] && recipeEditStore[id].notes) || ''); }
+        function recipeIsDirty(id) {
+            const a = editAnchor(id);
+            const amtChanged = recipes[id].ingredients.some(function (ing, idx) { return a.amounts[idx] !== ing.amount; });
+            const savedNotes = (recipeEditStore[id] && recipeEditStore[id].notes) || '';
+            return amtChanged || (draftNotes[id] != null && draftNotes[id] !== savedNotes);
+        }
+        // Boot: snapshot originals FIRST, then apply any saved stock edits on top.
+        function initRecipeEdits() {
+            recipeEditStore = loadRecipeEditStore();
+            Object.keys(recipes).forEach(snapshotPristine);
+            Object.keys(recipeEditStore).forEach(function (id) {
+                if (!recipes[id]) return;
+                const ed = recipeEditStore[id];
+                if (Array.isArray(ed.amounts)) ed.amounts.forEach(function (amt, idx) { if (recipes[id].ingredients[idx] && amt != null) recipes[id].ingredients[idx].amount = amt; });
+                if (ed.baseMacros) recipes[id].baseMacros = Object.assign({}, recipes[id].baseMacros, ed.baseMacros);
+            });
+        }
+        function saveRecipeEdits() {
+            const id = selectedRecipeId;
+            if (isCustomRecipe(id)) { setEditStatus('Custom recipes: edit & save them in the Add Recipe tab.', false); return; }
+            recipeEditStore[id] = {
+                amounts: recipes[id].ingredients.map(function (i) { return i.amount; }),
+                baseMacros: Object.assign({}, recipes[id].baseMacros),
+                notes: recipeNotes(id)
+            };
+            delete draftNotes[id];
+            persistRecipeEditStore();
+            setEditStatus('Saved.', true);
+            updateEditToolbar();
+        }
+        function revertRecipeEdits() {
+            const id = selectedRecipeId;
+            if (pristineRecipes[id]) recipes[id] = deepCopyRecipe(pristineRecipes[id]);
+            delete recipeEditStore[id]; delete draftNotes[id];
+            persistRecipeEditStore();
+            renderRecipeScaler();
+            setEditStatus('Reverted to original.', true);
+        }
+        function setEditStatus(msg, ok) {
+            const el = document.getElementById('recipe-edit-status');
+            if (!el) return;
+            el.textContent = msg || '';
+            el.className = 'text-[11px] font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent');
+        }
+        function updateEditToolbar() {
+            const id = selectedRecipeId;
+            const custom = isCustomRecipe(id), dirty = recipeIsDirty(id), saved = !!recipeEditStore[id];
+            const saveBtn = document.getElementById('recipe-save-btn');
+            const revertBtn = document.getElementById('recipe-revert-btn');
+            if (saveBtn) { const dis = custom || !dirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Edit custom recipes in the Add Recipe tab' : ''; }
+            if (revertBtn) { const can = dirty || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
+            if (dirty) setEditStatus(custom ? 'Live preview — custom recipes save in the Add Recipe tab' : 'Unsaved changes', false);
+            else setEditStatus(custom ? 'Custom recipe — edit in Add Recipe tab' : (saved ? 'Saved edits applied' : ''), true);
+        }
+        function setScalerMacros(current, mult) {
+            const rdelta = (amountMode === 'whole') ? roundingMacroDelta(current, mult) : { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
+            document.getElementById('macro-cal').innerText = Math.round(current.baseMacros.cal * mult + rdelta.cal) + ' kcal';
+            document.getElementById('macro-prot').innerText = Math.round(current.baseMacros.prot * mult + rdelta.prot) + 'g';
+            document.getElementById('macro-fat').innerText = Math.round(current.baseMacros.fat * mult + rdelta.fat) + 'g';
+            document.getElementById('macro-fib').innerText = Math.round(current.baseMacros.fib * mult + rdelta.fib) + 'g';
+            document.getElementById('macro-carb').innerText = Math.round(current.baseMacros.carb * mult + rdelta.carb) + 'g';
+        }
+
         // TAB 2: RECIPE SCALER
         function renderRecipeScaler() {
             const dir = document.getElementById('recipe-directory');
@@ -387,49 +503,90 @@ function updateTabs() {
                 scalingTipElement.classList.add('hidden');
             }
 
+            snapshotPristine(selectedRecipeId);
+            const notesEl = document.getElementById('recipe-notes');
+            if (notesEl) notesEl.value = recipeNotes(selectedRecipeId);
+
             const multiplierInput = document.getElementById('multiplier-input');
             scaleRecipe(parseFloat(multiplierInput.value));
+            updateEditToolbar();
         }
 
         function scaleRecipe(mult) {
-            const current = getRecipe(selectedRecipeId);
+            const id = selectedRecipeId;
+            snapshotPristine(id);
+            const current = getRecipe(id);
 
             // Scale macros — in 'whole' mode, correct them for rounding discrete ingredients.
-            const rdelta = (amountMode === 'whole') ? roundingMacroDelta(current, mult) : { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
-            document.getElementById('macro-cal').innerText = Math.round(current.baseMacros.cal * mult + rdelta.cal) + ' kcal';
-            document.getElementById('macro-prot').innerText = Math.round(current.baseMacros.prot * mult + rdelta.prot) + 'g';
-            document.getElementById('macro-fat').innerText = Math.round(current.baseMacros.fat * mult + rdelta.fat) + 'g';
-            document.getElementById('macro-fib').innerText = Math.round(current.baseMacros.fib * mult + rdelta.fib) + 'g';
-            document.getElementById('macro-carb').innerText = Math.round(current.baseMacros.carb * mult + rdelta.carb) + 'g';
+            setScalerMacros(current, mult);
 
-            // Scale ingredients
+            // Inline amount editing is available unless we're viewing the Pasta carb swap,
+            // which rewrites the ingredient list (so raw indices wouldn't line up).
+            const editable = !(carbMode === 'pasta' && getCarbSwap(goalScaled(recipes[id])));
+            const gf = goalFactor();
+
             const ingredientsContainer = document.getElementById('scaled-ingredients');
             ingredientsContainer.innerHTML = '';
-            current.ingredients.forEach(ing => {
-                const scaledAmount = ing.amount * mult;
-                // Whole-units mode: round discrete items (eggs, bagels, slices, cubes...) to integers.
+
+            // Editable: iterate the RAW recipe (index-aligned) and apply goal scaling for display.
+            // Read-only (pasta view): iterate the already-transformed `current` list.
+            const rows = editable
+                ? recipes[id].ingredients.map((ing, idx) => ({ ing, idx, base: ing.amount, gf }))
+                : current.ingredients.map((ing, idx) => ({ ing, idx, base: ing.amount, gf: 1 }));
+
+            rows.forEach(row => {
+                const ing = row.ing;
+                const scaledAmount = row.base * row.gf * mult;
                 const rounding = (amountMode === 'whole' && isDiscreteUnit(ing.unit));
                 const shownAmount = rounding ? Math.round(scaledAmount) : scaledAmount;
-                let displayAmount = (shownAmount % 1 === 0) ? Math.round(shownAmount) : shownAmount.toFixed(1);
+                const displayScaled = (shownAmount % 1 === 0) ? Math.round(shownAmount) : shownAmount.toFixed(1);
                 const roundedNote = (rounding && shownAmount !== scaledAmount)
                     ? `<span class="block text-[10px] text-amberAccent font-semibold mt-0.5">&#9888; whole units &mdash; rounded from ${scaledAmount.toFixed(1)} ${ing.unit}</span>`
                     : '';
 
-                // For packaged items, show how many packages / cases the (shown) amount needs.
                 const ingKey = ing.name.toLowerCase().trim();
                 const ingGrams = (ing.unit === 'g' || ing.unit === 'grams') ? shownAmount : ingredientGrams(ingKey, shownAmount, ing.unit);
                 const pkg = (ingGrams != null) ? getPackageCount(ingKey, ingGrams) : null;
                 const pkgHintHtml = pkg ? packageHintHtml(pkg) : '';
+                const untracked = editable && !ingTracked(ing);
+                const nameHtml = `<span class="text-stoneNeutral-800 font-medium hover:text-emeraldAccent cursor-pointer dive-name">${ing.name}</span>`
+                    + (untracked ? '<span class="block text-[10px] text-amberAccent">macros not tracked — amount only</span>' : '')
+                    + pkgHintHtml + roundedNote;
 
                 const li = document.createElement('li');
-                li.className = 'flex justify-between items-start text-sm border-b border-stoneNeutral-100 pb-2 cursor-pointer hover:bg-stoneNeutral-50 px-2 py-1 rounded transition-colors';
-                li.innerHTML = `
-                    <span class="pr-2"><span class="text-stoneNeutral-800 font-medium hover:text-emeraldAccent">${ing.name}</span>${pkgHintHtml}${roundedNote}</span>
-                    <span class="font-mono font-bold text-stoneNeutral-900 bg-stoneNeutral-100 px-2.5 py-1 rounded whitespace-nowrap">${displayAmount} ${ing.unit}</span>
-                `;
-                li.addEventListener('click', () => {
-                    openDeepDive(ing, mult);
-                });
+                li.className = 'flex justify-between items-start text-sm border-b border-stoneNeutral-100 pb-2 px-2 py-1 rounded';
+
+                if (editable) {
+                    li.innerHTML = `
+                        <span class="pr-2 flex-1">${nameHtml}</span>
+                        <span class="flex flex-col items-end gap-0.5 whitespace-nowrap">
+                            <span class="flex items-center gap-1">
+                                <input type="number" min="0" step="0.1" value="${row.base}" class="ing-base-input w-16 bg-stoneNeutral-50 border border-stoneNeutral-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-stoneNeutral-900 focus:outline-none focus:ring-2 focus:ring-emeraldAccent">
+                                <span class="text-[11px] text-stoneNeutral-700">${ing.unit} base</span>
+                            </span>
+                            <span class="ing-scaled text-[10px] text-stoneNeutral-700 font-mono">= ${displayScaled} ${ing.unit} @ ${mult}&times;</span>
+                        </span>`;
+                    const input = li.querySelector('.ing-base-input');
+                    input.addEventListener('input', e => {
+                        let v = parseFloat(e.target.value);
+                        if (isNaN(v) || v < 0) v = 0;
+                        recipes[id].ingredients[row.idx].amount = v;
+                        recomputeBaseMacros(id);
+                        setScalerMacros(getRecipe(id), mult);  // refresh totals in place (keeps focus)
+                        const newScaled = v * goalFactor() * mult;
+                        const r2 = (amountMode === 'whole' && isDiscreteUnit(ing.unit)) ? Math.round(newScaled) : newScaled;
+                        li.querySelector('.ing-scaled').innerHTML = `= ${(r2 % 1 === 0) ? Math.round(r2) : r2.toFixed(1)} ${ing.unit} @ ${mult}&times;`;
+                        updateCarbPanel(mult);
+                        updateEditToolbar();
+                    });
+                    li.querySelector('.dive-name').addEventListener('click', () => openDeepDive({ name: ing.name, amount: row.base * goalFactor(), unit: ing.unit }, mult));
+                } else {
+                    li.classList.add('cursor-pointer', 'hover:bg-stoneNeutral-50', 'transition-colors');
+                    li.innerHTML = `
+                        <span class="pr-2">${nameHtml}</span>
+                        <span class="font-mono font-bold text-stoneNeutral-900 bg-stoneNeutral-100 px-2.5 py-1 rounded whitespace-nowrap">${displayScaled} ${ing.unit}</span>`;
+                    li.addEventListener('click', () => openDeepDive(ing, mult));
+                }
                 ingredientsContainer.appendChild(li);
             });
 
@@ -446,6 +603,7 @@ function updateTabs() {
             // Carb toggle + "how macros change" box (scaler only).
             updateCarbPanel(mult);
             syncAmountToggleUI();
+            updateEditToolbar();
         }
 
         // Show/refresh the scaler's Rice/Pasta toggle and the macro-change box for the
@@ -996,12 +1154,28 @@ function updateTabs() {
             renderSundayPlanner();
         });
 
+        // Recipe edit controls (scaler): Save / Revert / Notes.
+        (function () {
+            const saveBtn = document.getElementById('recipe-save-btn');
+            const revertBtn = document.getElementById('recipe-revert-btn');
+            const notes = document.getElementById('recipe-notes');
+            if (saveBtn) saveBtn.addEventListener('click', saveRecipeEdits);
+            if (revertBtn) revertBtn.addEventListener('click', revertRecipeEdits);
+            if (notes) notes.addEventListener('input', (e) => {
+                draftNotes[selectedRecipeId] = e.target.value;
+                updateEditToolbar();
+            });
+        })();
+
         // Init
+        // Snapshot originals + apply any saved recipe edits BEFORE the first render.
+        initRecipeEdits();
+
         // Pre-fill dropdown elements on boot to week 1 template
         const initialWeekPreset = weeksPlan['1'];
         document.getElementById('breakfast-mix').value = initialWeekPreset.breakfast;
         document.getElementById('lunch-mix').value = initialWeekPreset.lunch;
         document.getElementById('dinner-mix').value = initialWeekPreset.dinner;
         document.getElementById('dessert-mix').value = initialWeekPreset.dessert;
-        
+
         updateTabs();

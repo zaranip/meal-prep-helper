@@ -337,7 +337,12 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                                 <div>
                                     <h4 class="font-bold text-stoneNeutral-900 border-b border-stoneNeutral-200 pb-2 mb-2">Scaled Shopping List</h4>
-                                    <p class="text-[10px] text-stoneNeutral-700 mb-4 italic">Click any item below to explore measurements &amp; precise calorie/macro metrics.</p>
+                                    <p class="text-[10px] text-stoneNeutral-700 mb-2 italic">Edit any <b>base</b> amount to update macros live. Click an ingredient name for measurements &amp; per-item macros.</p>
+                                    <div class="flex items-center justify-end gap-2 mb-3 flex-wrap">
+                                        <span id="recipe-edit-status" class="text-[11px] font-semibold mr-auto"></span>
+                                        <button id="recipe-save-btn" class="px-3 py-1 text-xs font-bold bg-emeraldAccent text-white rounded hover:opacity-90 disabled:opacity-40">Save</button>
+                                        <button id="recipe-revert-btn" class="px-3 py-1 text-xs font-bold bg-stoneNeutral-200 text-stoneNeutral-800 rounded hover:bg-stoneNeutral-300 disabled:opacity-40">Revert to original</button>
+                                    </div>
                                     <ul class="space-y-3" id="scaled-ingredients">
                                         <!-- Populated dynamically -->
                                     </ul>
@@ -373,6 +378,12 @@
                                         <!-- Populated dynamically -->
                                     </ol>
                                 </div>
+                            </div>
+
+                            <!-- Recipe notes (saved with the recipe via Save) -->
+                            <div class="mt-8 p-5 bg-stoneNeutral-50 rounded-xl border border-stoneNeutral-200">
+                                <h4 class="font-bold text-stoneNeutral-900 flex items-center gap-2 mb-2 text-sm">&#128221; Notes</h4>
+                                <textarea id="recipe-notes" rows="3" placeholder="Tweaks, substitutions, reminders… Saved when you press Save." class="w-full bg-white border border-stoneNeutral-200 rounded px-3 py-2 text-sm text-stoneNeutral-800 focus:outline-none focus:ring-2 focus:ring-emeraldAccent"></textarea>
                             </div>
 
                             <!-- Rice vs. Pasta macro-change box (shown for rice-based recipes) -->
