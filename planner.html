@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Meal Prep Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        stoneNeutral: {
+                            50: '#fafaf9',
+                            100: '#f5f5f4',
+                            200: '#e7e5e4',
+                            300: '#d6d3d1',
+                            700: '#44403c',
+                            800: '#292524',
+                            900: '#1c1917',
+                        },
+                        emeraldAccent: '#0f766e',
+                        amberAccent: '#d97706',
+                        skyAccent: '#0369a1'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="antialiased" data-page="prep">
+    <div id="app-header"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<section id="prep" class="tab-content active">
+            <div class="mb-8 max-w-4xl">
+                <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Smart Prep Planner &amp; Grocery List</h2>
+                <p class="text-stoneNeutral-700 leading-relaxed">
+                    This advanced utility automates Sunday batch planning. The shopping list is perfectly synchronized with your custom Mix &amp; Match selections made in the Dashboard.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Selectors -->
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200">
+                        <h3 class="text-lg font-bold text-stoneNeutral-900 mb-4">Select Target Prep Days</h3>
+                        <div class="mt-4">
+                            <label class="text-sm font-bold text-stoneNeutral-800 block mb-2">Days of Prep (Default is 7):</label>
+                            <input type="number" id="planner-days" min="1" max="7" value="7" class="w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded-lg px-4 py-2 text-stoneNeutral-800 focus:outline-none focus:ring-2 focus:ring-emeraldAccent font-semibold">
+                            <p class="text-xs text-stoneNeutral-700 mt-1 italic">Type 5 for standard Workday Prep or 7 for full Weekly Prep.</p>
+                        </div>
+                    </div>
+
+                    <!-- Carryover Optimization Tip -->
+                    <div class="bg-emeraldAccent text-white p-6 rounded-xl">
+                        <h4 class="font-bold text-lg mb-2">Zero-Waste carryover checklist</h4>
+                        <p class="text-xs opacity-90 leading-relaxed mb-4">These items keep fresh inside sealed containers and carry over securely between Sunday rotations:</p>
+                        <ul class="text-xs space-y-2 opacity-95">
+                            <li>&bull; <b>Kirkland Liquid Egg Whites</b>: Buy the bulk multi-packs. Keeps safely refrigerated until ready to waffle or scramble.</li>
+                            <li>&bull; <b>Extra-Firm Tofu</b>: Sealed water tubs maintain texture for weeks.</li>
+                            <li>&bull; <b>White/Black Rice Grains</b>: Keep in dry airtight pantry containers.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Outputs: Consolidated Grocery Shopping List (Teal layout) -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-stoneNeutral-200">
+                    <div class="flex justify-between items-center pb-4 border-b border-stoneNeutral-200 mb-6">
+                        <h3 class="text-lg font-bold text-stoneNeutral-900">Consolidated Weekly Grocery List</h3>
+                        <span class="text-xs bg-emeraldAccent text-white font-bold uppercase tracking-widest px-3 py-1 rounded" id="grocery-multiplier-badge">x7 Days Prep</span>
+                    </div>
+
+                    <div id="grocery-items-container" class="space-y-3 mb-8">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-stoneNeutral-200">
+                        <h3 class="text-lg font-bold text-stoneNeutral-900 mb-4">Sequential Prep &amp; Cooking Guide</h3>
+                        <p class="text-xs text-stoneNeutral-700 mb-4 italic">Numbers in brackets calculate dynamically based on active selection. Click on any bracket to explore its exact ingredient detail card instantly.</p>
+                        <div id="timeline-container" class="space-y-4 text-sm">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/data-reconstruct.js"></script>
+    <script src="js/data-layer.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/packaging.js"></script>
+    <script src="js/nav.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

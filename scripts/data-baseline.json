@@ -1,0 +1,2228 @@
+{
+ "ingredientDB": {
+  "0% nonfat greek yogurt": {
+   "cal": 130,
+   "carb": 9,
+   "conversions": {
+    "cup": 1,
+    "g": 240
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 24
+  },
+  "all-purpose flour": {
+   "cal": 364,
+   "carb": 76,
+   "conversions": {
+    "cup": 0.8,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 1,
+   "fib": 2.7,
+   "prot": 10
+  },
+  "almond flour": {
+   "cal": 40,
+   "carb": 1.5,
+   "conversions": {
+    "g": 7,
+    "tbsp": 1
+   },
+   "fat": 3.5,
+   "fib": 0.5,
+   "prot": 1.5
+  },
+  "avocado oil spray": {
+   "cal": 9,
+   "carb": 0,
+   "conversions": {
+    "g": 1,
+    "spray": 1
+   },
+   "fat": 1,
+   "fib": 0,
+   "prot": 0
+  },
+  "baking powder": {
+   "cal": 0,
+   "carb": 1.1,
+   "conversions": {
+    "g": 4,
+    "tsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "baking soda": {
+   "cal": 0,
+   "carb": 0,
+   "conversions": {
+    "g": 1,
+    "tsp": 0.16
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "black rice (uncooked)": {
+   "cal": 43,
+   "carb": 9,
+   "conversions": {
+    "cup": 0.08,
+    "g": 12.5,
+    "tbsp": 1,
+    "tsp": 3
+   },
+   "fat": 0.3,
+   "fib": 1,
+   "prot": 0.9
+  },
+  "brami pasta": {
+   "cal": 200,
+   "carb": 34,
+   "conversions": {
+    "g": 56.7,
+    "oz": 2
+   },
+   "fat": 2.5,
+   "fib": 6,
+   "prot": 12
+  },
+  "broccoli florets": {
+   "cal": 34,
+   "carb": 6.6,
+   "conversions": {
+    "cup": 1.1,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 0.4,
+   "fib": 2.6,
+   "prot": 2.8
+  },
+  "brown sugar": {
+   "cal": 15,
+   "carb": 4,
+   "conversions": {
+    "g": 4,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "button mushrooms": {
+   "cal": 22,
+   "carb": 3.3,
+   "conversions": {
+    "cup": 1.4,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 0.3,
+   "fib": 1,
+   "prot": 3.1
+  },
+  "carrot (diced)": {
+   "cal": 25,
+   "carb": 6,
+   "conversions": {
+    "g": 61,
+    "medium": 1
+   },
+   "fat": 0.1,
+   "fib": 1.7,
+   "prot": 0.5
+  },
+  "carrot stick bags": {
+   "cal": 20,
+   "carb": 4.5,
+   "conversions": {
+    "bags": 1,
+    "g": 85
+   },
+   "fat": 0,
+   "fib": 2,
+   "prot": 0.25
+  },
+  "carrots": {
+   "cal": 41,
+   "carb": 9.6,
+   "conversions": {
+    "cup": 0.8,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 0.2,
+   "fib": 2.8,
+   "prot": 0.9
+  },
+  "chocolate chips": {
+   "cal": 50,
+   "carb": 6.5,
+   "conversions": {
+    "g": 10,
+    "tbsp": 0.7
+   },
+   "fat": 3,
+   "fib": 0.5,
+   "prot": 0.5
+  },
+  "chocolate protein powder": {
+   "cal": 120,
+   "carb": 3,
+   "conversions": {
+    "g": 31,
+    "scoops": 1
+   },
+   "fat": 1.5,
+   "fib": 1,
+   "prot": 24
+  },
+  "chopped mixed vegetables": {
+   "cal": 25,
+   "carb": 5,
+   "conversions": {
+    "cups": 1,
+    "g": 150
+   },
+   "fat": 0.1,
+   "fib": 2,
+   "prot": 1
+  },
+  "coconut aminos": {
+   "cal": 25,
+   "carb": 6,
+   "conversions": {
+    "g": 15,
+    "mL": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0.5
+  },
+  "cooking spray": {
+   "cal": 5,
+   "carb": 0,
+   "conversions": {
+    "g": 1,
+    "light coat": 1,
+    "spray": 1
+   },
+   "fat": 0.6,
+   "fib": 0,
+   "prot": 0
+  },
+  "cornstarch": {
+   "cal": 30,
+   "carb": 7,
+   "conversions": {
+    "g": 8,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 0
+  },
+  "dark chocolate chips": {
+   "cal": 35,
+   "carb": 4.5,
+   "conversions": {
+    "g": 7,
+    "tsp": 1
+   },
+   "fat": 2,
+   "fib": 0.3,
+   "prot": 0.3
+  },
+  "dark cocoa powder": {
+   "cal": 25,
+   "carb": 5.5,
+   "conversions": {
+    "g": 10,
+    "tbsp": 1.3
+   },
+   "fat": 1.5,
+   "fib": 3,
+   "prot": 2
+  },
+  "doubanjiang": {
+   "cal": 15,
+   "carb": 2,
+   "conversions": {
+    "g": 15,
+    "tbsp": 1
+   },
+   "fat": 0.3,
+   "fib": 0.5,
+   "prot": 0.5
+  },
+  "extra firm tofu": {
+   "cal": 83,
+   "carb": 2.5,
+   "conversions": {
+    "blocks": 0.4,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 4.3,
+   "fib": 1.2,
+   "prot": 9.8
+  },
+  "fairlife 2% chocolate milk": {
+   "cal": 140,
+   "carb": 13,
+   "conversions": {
+    "cup": 1,
+    "g": 240,
+    "mL": 240,
+    "tbsp": 16
+   },
+   "fat": 4.5,
+   "fib": 1,
+   "prot": 13
+  },
+  "fat-free vanilla greek yogurt": {
+   "cal": 57,
+   "carb": 3.6,
+   "conversions": {
+    "cup": 0.4,
+    "g": 100
+   },
+   "fat": 0.4,
+   "fib": 0,
+   "prot": 10.3
+  },
+  "fingerling potatoes": {
+   "cal": 77,
+   "carb": 17.5,
+   "conversions": {
+    "cup": 0.65,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 0.1,
+   "fib": 2.2,
+   "prot": 2
+  },
+  "fresh cilantro": {
+   "cal": 4,
+   "carb": 0.5,
+   "conversions": {
+    "bunch": 1,
+    "g": 40
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 0.1
+  },
+  "fresh cilantro or basil": {
+   "cal": 23,
+   "carb": 3.7,
+   "conversions": {
+    "cup": 6.25,
+    "g": 100,
+    "tbsp": 100
+   },
+   "fat": 0.5,
+   "fib": 2.8,
+   "prot": 2.1
+  },
+  "fresh ginger": {
+   "cal": 80,
+   "carb": 18,
+   "conversions": {
+    "g": 100,
+    "inch": 16.7,
+    "tbsp": 16.7,
+    "tsp": 50
+   },
+   "fat": 0.8,
+   "fib": 2,
+   "prot": 1.8
+  },
+  "fresh herbs (mint/thai basil)": {
+   "cal": 5,
+   "carb": 1,
+   "conversions": {
+    "cup": 1,
+    "g": 25
+   },
+   "fat": 0,
+   "fib": 0.5,
+   "prot": 0.2
+  },
+  "fresh mint (chopped)": {
+   "cal": 70,
+   "carb": 14.9,
+   "conversions": {
+    "cup": 5.3,
+    "g": 100,
+    "tbsp": 50
+   },
+   "fat": 0.9,
+   "fib": 8,
+   "prot": 3.8
+  },
+  "fresh spinach": {
+   "cal": 7,
+   "carb": 1.1,
+   "conversions": {
+    "cups": 1,
+    "g": 30
+   },
+   "fat": 0.1,
+   "fib": 0.7,
+   "prot": 0.9
+  },
+  "garam masala": {
+   "cal": 350,
+   "carb": 45,
+   "conversions": {
+    "g": 100,
+    "tbsp": 14.5,
+    "tsp": 43.5
+   },
+   "fat": 15,
+   "fib": 25,
+   "prot": 14
+  },
+  "garlic": {
+   "cal": 4,
+   "carb": 1,
+   "conversions": {
+    "cloves": 1,
+    "g": 3
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 0.2
+  },
+  "garlic & ginger": {
+   "cal": 4,
+   "carb": 1,
+   "conversions": {
+    "cloves/1-inch knob": 1,
+    "g": 5
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 0.2
+  },
+  "ginger": {
+   "cal": 2,
+   "carb": 0.4,
+   "conversions": {
+    "g": 6,
+    "inch": 1
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 0
+  },
+  "gluten-free oreos (optional mix-in)": {
+   "cal": 53,
+   "carb": 8.3,
+   "conversions": {
+    "cookies": 1,
+    "g": 11.3
+   },
+   "fat": 2.3,
+   "fib": 0.3,
+   "prot": 0.3
+  },
+  "gochujang": {
+   "cal": 35,
+   "carb": 7,
+   "conversions": {
+    "g": 15,
+    "tbsp": 1,
+    "tsp": 3
+   },
+   "fat": 0.3,
+   "fib": 0.5,
+   "prot": 1
+  },
+  "granular swerve sweetener": {
+   "cal": 0,
+   "carb": 100,
+   "conversions": {
+    "cup": 0.5,
+    "g": 100
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "ground coriander": {
+   "cal": 298,
+   "carb": 55,
+   "conversions": {
+    "g": 100,
+    "tbsp": 18.5,
+    "tsp": 55.6
+   },
+   "fat": 17.8,
+   "fib": 41.9,
+   "prot": 12.4
+  },
+  "ground cumin": {
+   "cal": 375,
+   "carb": 44.2,
+   "conversions": {
+    "g": 100,
+    "tbsp": 15.9,
+    "tsp": 47.6
+   },
+   "fat": 22.3,
+   "fib": 10.5,
+   "prot": 17.8
+  },
+  "heinz sugar-free ketchup": {
+   "cal": 5,
+   "carb": 1,
+   "conversions": {
+    "g": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "high-protein bread (90 cals/slice)": {
+   "cal": 90,
+   "carb": 12,
+   "conversions": {
+    "slices": 1
+   },
+   "fat": 1,
+   "fib": 5,
+   "prot": 9
+  },
+  "jalapeño peppers": {
+   "cal": 4,
+   "carb": 0.9,
+   "conversions": {
+    "g": 14,
+    "whole": 1
+   },
+   "fat": 0,
+   "fib": 0.4,
+   "prot": 0.1
+  },
+  "japanese curry roux cube": {
+   "cal": 90,
+   "carb": 8,
+   "conversions": {
+    "cube": 1,
+    "g": 18
+   },
+   "fat": 6,
+   "fib": 0.5,
+   "prot": 1
+  },
+  "kirkland liquid egg whites": {
+   "cal": 50,
+   "carb": 0.8,
+   "conversions": {
+    "cup": 0.42,
+    "g": 100,
+    "mL": 100,
+    "oz": 3.5,
+    "tbsp": 6.7
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 10.8
+  },
+  "kosher salt & black pepper": {
+   "cal": 0,
+   "carb": 0,
+   "conversions": {
+    "g": 1,
+    "to taste": 1,
+    "tsp": 0.16
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "large eggs": {
+   "cal": 70,
+   "carb": 0.6,
+   "conversions": {
+    "g": 50,
+    "whole": 1
+   },
+   "fat": 5,
+   "fib": 0,
+   "prot": 6
+  },
+  "lemongrass stem": {
+   "cal": 5,
+   "carb": 1.2,
+   "conversions": {
+    "g": 10,
+    "whole": 1
+   },
+   "fat": 0,
+   "fib": 0.3,
+   "prot": 0.1
+  },
+  "lime juice": {
+   "cal": 4,
+   "carb": 1.3,
+   "conversions": {
+    "g": 15,
+    "mL": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "low-calorie bread (for crumbs)": {
+   "cal": 30,
+   "carb": 5,
+   "conversions": {
+    "slices": 1
+   },
+   "fat": 0,
+   "fib": 3,
+   "prot": 2
+  },
+  "low-fat cottage cheese (2%)": {
+   "cal": 25,
+   "carb": 1.5,
+   "conversions": {
+    "cup": 0.12,
+    "g": 30,
+    "tbsp": 2,
+    "tsp": 6
+   },
+   "fat": 0.7,
+   "fib": 0,
+   "prot": 3.5
+  },
+  "low-sodium soy sauce": {
+   "cal": 10,
+   "carb": 1,
+   "conversions": {
+    "g": 15,
+    "mL": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 1.3
+  },
+  "medium eggs": {
+   "cal": 70,
+   "carb": 0.6,
+   "conversions": {
+    "g": 50,
+    "whole": 1
+   },
+   "fat": 5,
+   "fib": 0,
+   "prot": 6
+  },
+  "monk fruit sweetener": {
+   "cal": 0,
+   "carb": 100,
+   "conversions": {
+    "cup": 1,
+    "g": 200
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "neutral cooking oil": {
+   "cal": 120,
+   "carb": 0,
+   "conversions": {
+    "g": 14,
+    "mL": 15,
+    "tbsp": 1,
+    "tsp": 3
+   },
+   "fat": 14,
+   "fib": 0,
+   "prot": 0
+  },
+  "oat flour": {
+   "cal": 389,
+   "carb": 66,
+   "conversions": {
+    "cup": 1.1,
+    "g": 100,
+    "tbsp": 11
+   },
+   "fat": 7,
+   "fib": 10,
+   "prot": 16
+  },
+  "olive oil": {
+   "cal": 120,
+   "carb": 0,
+   "conversions": {
+    "g": 14,
+    "mL": 15,
+    "tbsp": 1
+   },
+   "fat": 14,
+   "fib": 0,
+   "prot": 0
+  },
+  "oyster sauce": {
+   "cal": 15,
+   "carb": 3.5,
+   "conversions": {
+    "g": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0.2
+  },
+  "parmesan cheese (grated)": {
+   "cal": 110,
+   "carb": 1,
+   "conversions": {
+    "cup": 0.25,
+    "g": 20
+   },
+   "fat": 7,
+   "fib": 0,
+   "prot": 9
+  },
+  "plain nonfat greek yogurt": {
+   "cal": 57,
+   "carb": 3.6,
+   "conversions": {
+    "cup": 0.4,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 0.4,
+   "fib": 0,
+   "prot": 10.3
+  },
+  "poblano pepper (chopped)": {
+   "cal": 20,
+   "carb": 6,
+   "conversions": {
+    "cup": 0.67,
+    "g": 100,
+    "whole": 2.22
+   },
+   "fat": 0.2,
+   "fib": 2,
+   "prot": 1
+  },
+  "red onion": {
+   "cal": 40,
+   "carb": 9.3,
+   "conversions": {
+    "g": 150,
+    "large": 1,
+    "oz": 5.3
+   },
+   "fat": 0.1,
+   "fib": 1.7,
+   "prot": 1.1
+  },
+  "russet potato (diced)": {
+   "cal": 110,
+   "carb": 26,
+   "conversions": {
+    "g": 150,
+    "medium": 1
+   },
+   "fat": 0.1,
+   "fib": 2,
+   "prot": 3
+  },
+  "salt": {
+   "cal": 0,
+   "carb": 0,
+   "conversions": {
+    "g": 1,
+    "tsp": 0.16
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "sea salt": {
+   "cal": 0,
+   "carb": 0,
+   "conversions": {
+    "g": 0.36,
+    "pinch": 1,
+    "tsp": 0.16
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "sesame cooking oil": {
+   "cal": 40,
+   "carb": 0,
+   "conversions": {
+    "g": 4.5,
+    "mL": 5,
+    "tbsp": 0.33,
+    "tsp": 1
+   },
+   "fat": 4.5,
+   "fib": 0,
+   "prot": 0
+  },
+  "sesame oil": {
+   "cal": 884,
+   "carb": 0,
+   "conversions": {
+    "g": 100,
+    "mL": 108,
+    "tbsp": 7.4,
+    "tsp": 22.2
+   },
+   "fat": 100,
+   "fib": 0,
+   "prot": 0
+  },
+  "sesame/peanut oil": {
+   "cal": 120,
+   "carb": 0,
+   "conversions": {
+    "g": 14,
+    "mL": 15,
+    "tbsp": 1
+   },
+   "fat": 14,
+   "fib": 0,
+   "prot": 0
+  },
+  "shallot": {
+   "cal": 7,
+   "carb": 1.7,
+   "conversions": {
+    "g": 10,
+    "whole": 1
+   },
+   "fat": 0,
+   "fib": 0.3,
+   "prot": 0.2
+  },
+  "shelled edamame": {
+   "cal": 122,
+   "carb": 10,
+   "conversions": {
+    "cup": 0.7,
+    "g": 100,
+    "oz": 3.5,
+    "tbsp": 6.7
+   },
+   "fat": 5,
+   "fib": 5,
+   "prot": 11
+  },
+  "shiitake mushrooms": {
+   "cal": 34,
+   "carb": 6.8,
+   "conversions": {
+    "cup": 1.2,
+    "g": 100
+   },
+   "fat": 0.5,
+   "fib": 2.5,
+   "prot": 2.2
+  },
+  "sichuan peppercorns": {
+   "cal": 5,
+   "carb": 1,
+   "conversions": {
+    "g": 3,
+    "tsp": 1
+   },
+   "fat": 0.1,
+   "fib": 0.5,
+   "prot": 0.1
+  },
+  "smart balance light butter": {
+   "cal": 25,
+   "carb": 0,
+   "conversions": {
+    "g": 5,
+    "tsp": 1
+   },
+   "fat": 2.8,
+   "fib": 0,
+   "prot": 0
+  },
+  "sola blueberry bagel": {
+   "cal": 120,
+   "carb": 34,
+   "conversions": {
+    "bagel": 1,
+    "g": 85,
+    "oz": 3,
+    "tbsp": 8.5,
+    "whole bagel": 1
+   },
+   "fat": 3.5,
+   "fib": 28,
+   "prot": 15
+  },
+  "soy sauce": {
+   "cal": 10,
+   "carb": 1,
+   "conversions": {
+    "g": 15,
+    "mL": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 1.3
+  },
+  "sugar-free syrup": {
+   "cal": 10,
+   "carb": 2.5,
+   "conversions": {
+    "g": 15,
+    "tbsp": 1
+   },
+   "fat": 0,
+   "fib": 0,
+   "prot": 0
+  },
+  "uncooked jasmine rice (for powder)": {
+   "cal": 45,
+   "carb": 10,
+   "conversions": {
+    "g": 12.5,
+    "tbsp": 1
+   },
+   "fat": 0.1,
+   "fib": 0.3,
+   "prot": 0.9
+  },
+  "unsweetened almond milk": {
+   "cal": 30,
+   "carb": 1,
+   "conversions": {
+    "g": 15,
+    "tbsp": 1
+   },
+   "fat": 2.5,
+   "fib": 1,
+   "prot": 1
+  },
+  "unsweetened cocoa powder": {
+   "cal": 20,
+   "carb": 4.5,
+   "conversions": {
+    "g": 7,
+    "tbsp": 1
+   },
+   "fat": 1.2,
+   "fib": 2.5,
+   "prot": 1.5
+  },
+  "vanilla protein powder (e.g. pe science)": {
+   "cal": 120,
+   "carb": 3,
+   "conversions": {
+    "g": 31,
+    "scoops": 1
+   },
+   "fat": 1.5,
+   "fib": 1,
+   "prot": 24
+  },
+  "vanilla whey protein powder": {
+   "cal": 120,
+   "carb": 3,
+   "conversions": {
+    "g": 31,
+    "scoops": 1
+   },
+   "fat": 1.5,
+   "fib": 1,
+   "prot": 24
+  },
+  "vegetable broth": {
+   "cal": 15,
+   "carb": 3,
+   "conversions": {
+    "Liter": 1,
+    "cup": 4
+   },
+   "fat": 0,
+   "fib": 0.1,
+   "prot": 0.5
+  },
+  "whey protein powder": {
+   "cal": 120,
+   "carb": 3,
+   "conversions": {
+    "g": 10,
+    "tbsp": 1
+   },
+   "fat": 1.5,
+   "fib": 1,
+   "prot": 24
+  },
+  "white onion (sliced)": {
+   "cal": 10,
+   "carb": 2.3,
+   "conversions": {
+    "g": 25,
+    "whole": 0.25
+   },
+   "fat": 0,
+   "fib": 0.4,
+   "prot": 0.3
+  },
+  "white rice (uncooked)": {
+   "cal": 45,
+   "carb": 10,
+   "conversions": {
+    "cup": 0.08,
+    "g": 12.5,
+    "tbsp": 1,
+    "tsp": 3
+   },
+   "fat": 0.1,
+   "fib": 0.3,
+   "prot": 0.9
+  },
+  "whole eggs (egg wash + tamagoyaki)": {
+   "cal": 70,
+   "carb": 0.6,
+   "conversions": {
+    "g": 50,
+    "whole": 1
+   },
+   "fat": 5,
+   "fib": 0,
+   "prot": 6
+  },
+  "whole peeled tomatoes (canned)": {
+   "cal": 20,
+   "carb": 4.5,
+   "conversions": {
+    "cup": 0.42,
+    "g": 100,
+    "oz": 3.5
+   },
+   "fat": 0.2,
+   "fib": 1,
+   "prot": 1
+  },
+  "yellow onion (diced)": {
+   "cal": 40,
+   "carb": 9.3,
+   "conversions": {
+    "cup": 0.63,
+    "g": 100,
+    "medium": 0.91
+   },
+   "fat": 0.1,
+   "fib": 1.7,
+   "prot": 1.1
+  }
+ },
+ "recipes": {
+  "bagel": {
+   "baseMacros": {
+    "cal": 205,
+    "carb": 36.5,
+    "fat": 4.2,
+    "fib": 28,
+    "prot": 31.5
+   },
+   "desc": "A fiber-packed delicious Sola Blueberry Bagel sandwich featuring waffled liquid egg whites and Greek cottage cheese shmear.",
+   "freezerTips": "Wrap Sola Blueberry Bagels and cooked waffled egg white patties separately in airtight plastic wrap. Toast the bagel straight from frozen, and microwave the egg white patty on high for 30-45 seconds.",
+   "id": "bagel",
+   "ingredients": [
+    {
+     "amount": 1,
+     "name": "Sola Blueberry Bagel",
+     "unit": "bagel"
+    },
+    {
+     "amount": 120,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 30,
+     "name": "Low-Fat Cottage Cheese (2%)",
+     "unit": "g"
+    },
+    {
+     "amount": 1,
+     "name": "Avocado oil spray",
+     "unit": "quick spray"
+    }
+   ],
+   "steps": [
+    "Preheat mini waffle maker. Coat top and bottom grids with avocado oil spray.",
+    "Measure out exactly 120g of liquid egg whites.",
+    "Slowly pour egg whites onto bottom grid, ensuring it does not overflow.",
+    "Close and let cook undisturbed for 2-3 minutes until set and steam slows.",
+    "Toast your Sola Blueberry Bagel. Spread cottage cheese evenly on both sides.",
+    "Assemble waffled egg white patty into Sola Blueberry Bagel and enjoy immediately."
+   ],
+   "title": "Blueberry Breakfast Bagel Sandwich",
+   "type": "Breakfast",
+   "week": [
+    1,
+    2
+   ]
+  },
+  "blondies": {
+   "baseMacros": {
+    "cal": 88,
+    "carb": 9.3,
+    "fat": 1.8,
+    "fib": 1,
+    "prot": 9.6
+   },
+   "desc": "A dense high-protein vanilla choc-chip blondie baked in a standard 9x13 pan. Sliced into exactly 24 even 2x2\" squares (eat 1 daily).",
+   "freezerTips": "Once completely cooled, wrap individual 2x2\" squares tightly in plastic wrap. Freeze in a single layer. They thaw perfectly at room temperature in 10-15 minutes or inside your lunchbox by mid-day.",
+   "id": "blondies",
+   "ingredients": [
+    {
+     "amount": 14.1,
+     "name": "Plain Nonfat Greek Yogurt",
+     "unit": "g"
+    },
+    {
+     "amount": 0.125,
+     "name": "Medium Eggs",
+     "unit": "whole"
+    },
+    {
+     "amount": 6,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "mL"
+    },
+    {
+     "amount": 7.5,
+     "name": "All-Purpose Flour",
+     "unit": "g"
+    },
+    {
+     "amount": 3.9,
+     "name": "Vanilla Protein Powder (e.g. PE Science)",
+     "unit": "g"
+    },
+    {
+     "amount": 3.75,
+     "name": "Oat Flour",
+     "unit": "g"
+    },
+    {
+     "amount": 12,
+     "name": "Granular Swerve Sweetener",
+     "unit": "g"
+    },
+    {
+     "amount": 0.5,
+     "name": "Baking Soda",
+     "unit": "g"
+    },
+    {
+     "amount": 0.125,
+     "name": "Salt",
+     "unit": "g"
+    },
+    {
+     "amount": 2.6,
+     "name": "Chocolate Chips",
+     "unit": "g"
+    }
+   ],
+   "scalingTip": "Scale to 24x to output ingredients for exactly 1 full 9x13\" pan.",
+   "steps": [
+    "Tip: Enter 24 servings in the multiplier to see the exact ingredients needed for a full 9x13\" pan!",
+    "Preheat oven to 350°F (175°C). Line a standard 9x13\" baking pan with parchment paper.",
+    "Whisk together yogurt, whole eggs, liquid egg whites, and vanilla extract.",
+    "In a separate bowl, whisk all-purpose flour, protein powder, oat flour, Swerve, baking soda, and salt.",
+    "Combine wet and dry bases. Mix thoroughly with a spatula to form a thick uniform batter, then fold in chocolate chips.",
+    "Spread evenly in the pan and bake for 22-25 minutes. Cool completely and slice into exactly 24 squares (6x4 grid)."
+   ],
+   "title": "9x13\" Pan Protein Blondies",
+   "type": "Dessert",
+   "week": [
+    1,
+    3
+   ]
+  },
+  "curryLunch": {
+   "baseMacros": {
+    "cal": 778,
+    "carb": 66.6,
+    "fat": 26.1,
+    "fib": 21.8,
+    "prot": 80.1
+   },
+   "desc": "A complete lunch system featuring two waffled curry bread pockets (4 slices of high-protein bread, with spinach folded into the filling) and a Tamagoyaki side.",
+   "freezerTips": "Freeze Curry bread pockets RAW (before air frying). This prevents soggy structures. Air-fry from frozen at 350°F (175°C) for 10-12 minutes. Store cooked Tamagoyaki logs wrapped tightly, thaw in fridge.",
+   "id": "curryLunch",
+   "ingredients": [
+    {
+     "amount": 4,
+     "name": "High-Protein Bread (90 cals/slice)",
+     "unit": "slices"
+    },
+    {
+     "amount": 3.75,
+     "name": "Whole Eggs (egg wash + tamagoyaki)",
+     "unit": "whole"
+    },
+    {
+     "amount": 2.5,
+     "name": "Fresh Spinach",
+     "unit": "cups"
+    },
+    {
+     "amount": 1.25,
+     "name": "Heinz Sugar-Free Ketchup",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.15,
+     "name": "Russet Potato (Diced)",
+     "unit": "medium"
+    },
+    {
+     "amount": 0.4,
+     "name": "Carrot (Diced)",
+     "unit": "medium"
+    },
+    {
+     "amount": 190,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 0.4,
+     "name": "Japanese Curry Roux Cube",
+     "unit": "cube"
+    }
+   ],
+   "steps": [
+    "Trim the crusts/edges off the high-protein bread slices. Air-fry just the trimmed crusts at 300°F (150°C) until completely dry, then process them into breadcrumbs. Reserve the bread centers for the pockets.",
+    "Boil diced potato and carrot. Drain, then stir in the curry cube, fresh spinach, and liquid egg whites. Scramble over heat until the spinach wilts down and a thick, scoopable paste forms.",
+    "Divide the curry filling between the reserved bread centers (4 trimmed slices = 2 pockets), crimp each pocket shut, dip in egg wash, coat in the crust breadcrumbs, and air-fry raw at 350°F (175°C) until crispy.",
+    "Whisk whole eggs and cook layers in a pan, folding progressively into a log to form a classic Japanese Tamagoyaki."
+   ],
+   "title": "Curry Bread Pocket Bento Box",
+   "type": "Lunch",
+   "week": [
+    3
+   ]
+  },
+  "eggSkillet": {
+   "baseMacros": {
+    "cal": 195,
+    "carb": 30,
+    "fat": 5,
+    "fib": 4.5,
+    "prot": 9.6
+   },
+   "desc": "A spiced baked-egg skillet over fingerling potatoes in a tomato, poblano & jalapeño sauce. Amounts shown are PER SERVING — scale to 6x in the Recipe Scaler to make the full 6-serving bake.",
+   "freezerTips": "Best eaten fresh, but the spiced tomato-potato base freezes well WITHOUT the eggs. Freeze the sauce-and-potato base in portions; thaw, spread in a dish, then crack in fresh eggs and bake just before serving.",
+   "id": "eggSkillet",
+   "ingredients": [
+    {
+     "amount": 113,
+     "name": "Fingerling Potatoes",
+     "unit": "g"
+    },
+    {
+     "amount": 1,
+     "name": "Cooking Spray",
+     "unit": "light coat"
+    },
+    {
+     "amount": 0.17,
+     "name": "Yellow Onion (diced)",
+     "unit": "medium"
+    },
+    {
+     "amount": 0.17,
+     "name": "Poblano Pepper (chopped)",
+     "unit": "whole"
+    },
+    {
+     "amount": 0.33,
+     "name": "Jalapeño Peppers",
+     "unit": "whole"
+    },
+    {
+     "amount": 0.33,
+     "name": "Fresh Ginger",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.5,
+     "name": "Garlic",
+     "unit": "cloves"
+    },
+    {
+     "amount": 0.17,
+     "name": "Ground Cumin",
+     "unit": "tsp"
+    },
+    {
+     "amount": 0.17,
+     "name": "Garam Masala",
+     "unit": "tsp"
+    },
+    {
+     "amount": 0.08,
+     "name": "Ground Coriander",
+     "unit": "tsp"
+    },
+    {
+     "amount": 132,
+     "name": "Whole Peeled Tomatoes (canned)",
+     "unit": "g"
+    },
+    {
+     "amount": 0.67,
+     "name": "Fresh Mint (chopped)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.33,
+     "name": "Fresh Cilantro or Basil",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1,
+     "name": "Large Eggs",
+     "unit": "whole"
+    },
+    {
+     "amount": 1,
+     "name": "Kosher Salt & Black Pepper",
+     "unit": "to taste"
+    }
+   ],
+   "steps": [
+    "PREP POTATOES: Boil potatoes in generously salted water until tender (~20 min for the full batch). Drain, cool slightly, and slice into 1/2-inch rounds.",
+    "SAUTE AROMATICS: Coat a large skillet with cooking spray over medium-high heat. Cook onion until almost tender (5-7 min). Add poblano and jalapeño; cook 3 min. Add ginger, garlic, cumin, garam masala, and coriander; cook 1 min until fragrant.",
+    "SIMMER SAUCE: Stir in the canned tomatoes and a little salt. Simmer on medium-low, breaking up the tomatoes with a fork, for 15 min. Stir in the mint and cilantro/basil; taste and adjust seasoning.",
+    "BAKE: Heat oven to 375°F. Arrange the potatoes in a single layer in a baking dish (9-inch square for the full 6-serving batch) and pour the hot sauce over them.",
+    "FINISH: Make one well per serving, crack an egg into each, and season with salt and pepper. Bake 8-13 min until whites are set but yolks stay runny. Garnish with extra herbs."
+   ],
+   "title": "Spiced Tomato & Egg Skillet",
+   "type": "Breakfast",
+   "week": []
+  },
+  "frittata": {
+   "baseMacros": {
+    "cal": 153,
+    "carb": 6.5,
+    "fat": 6.8,
+    "fib": 2,
+    "prot": 16.5
+   },
+   "desc": "A dense skillet-baked egg white wedge loaded with roasted broccoli florets and mushrooms.",
+   "freezerTips": "Let the frittata cool 100% to room temperature before wrapping in plastic wrap to prevent trapped condensation. When microwaving at work, wrap tightly in a dry paper towel to catch any escaping moisture.",
+   "id": "frittata",
+   "ingredients": [
+    {
+     "amount": 227,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 1,
+     "name": "Olive Oil",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 2.5,
+     "name": "Chopped Mixed Vegetables",
+     "unit": "cups"
+    },
+    {
+     "amount": 0.25,
+     "name": "Parmesan Cheese (Grated)",
+     "unit": "cup"
+    },
+    {
+     "amount": 0.25,
+     "name": "White Onion (Sliced)",
+     "unit": "whole"
+    }
+   ],
+   "steps": [
+    "Sauté onions and vegetables in olive oil in an oven-safe skillet until fully tender and moisture is completely evaporated.",
+    "Whisk liquid egg whites with salt, pepper, and Parmesan cheese.",
+    "Pour egg whites evenly over the vegetables in the pan.",
+    "Cook on low heat undisturbed for 10 minutes until edges are set.",
+    "Pop under the oven broiler for 2-3 minutes until the top is puffed and deeply golden."
+   ],
+   "title": "Egg White Veggie Frittata",
+   "type": "Breakfast",
+   "week": [
+    4
+   ]
+  },
+  "laab": {
+   "baseMacros": {
+    "cal": 779,
+    "carb": 35.1,
+    "fat": 29.3,
+    "fib": 6.8,
+    "prot": 37.4
+   },
+   "desc": "Finely crumbled extra-firm tofu tossed with toasted jasmine rice powder and lemongrass in a lime-tamari dressing. Rounded to a 0.85x portion.",
+   "freezerTips": "Freeze the cooked tofu and aromatic lemongrass base dry on Sunday. Prepare your lime dressing separately. When ready to eat, thaw and reheat the tofu in a hot pan for 2 mins, then toss with the fresh dressing and fresh mint.",
+   "id": "laab",
+   "ingredients": [
+    {
+     "amount": 2.55,
+     "name": "White Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.275,
+     "name": "Black Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 340,
+     "name": "Extra Firm Tofu",
+     "unit": "g"
+    },
+    {
+     "amount": 1.275,
+     "name": "Uncooked Jasmine Rice (for powder)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.85,
+     "name": "Lemongrass Stem",
+     "unit": "whole"
+    },
+    {
+     "amount": 0.85,
+     "name": "Shallot",
+     "unit": "whole"
+    },
+    {
+     "amount": 1.7,
+     "name": "Lime Juice",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.275,
+     "name": "Brown Sugar",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.85,
+     "name": "Soy Sauce",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1,
+     "name": "Sesame/Peanut Oil",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.85,
+     "name": "Fresh Herbs (Mint/Thai Basil)",
+     "unit": "cup"
+    }
+   ],
+   "steps": [
+    "Sauté uncooked jasmine rice dry until golden and nutty, then crush into a coarse powder.",
+    "Whisk lime juice, brown sugar, soy sauce, and chili flakes in a bowl.",
+    "Crumble extra-firm tofu into small chunks.",
+    "Sauté lemongrass and sliced shallots in oil, add tofu, and cook until slightly crispy.",
+    "Toss base with the dressing, toasted rice powder, and fresh herbs; serve on butter lettuce."
+   ],
+   "title": "Vegan Tofu Laab",
+   "type": "Dinner",
+   "week": [
+    4
+   ]
+  },
+  "mapoTofu": {
+   "baseMacros": {
+    "cal": 757,
+    "carb": 37.8,
+    "fat": 25,
+    "fib": 9,
+    "prot": 61.5
+   },
+   "desc": "A high-volume Sichuan classic utilizing minced shiitakes, firm tofu, and a silky egg white base.",
+   "freezerTips": "The spicy bean paste (Doubanjiang) and Sichuan peppercorns freeze exceptionally well without losing depth. Pack tightly into small flat containers. Microwave from frozen for 2.5 minutes on medium-high.",
+   "id": "mapoTofu",
+   "ingredients": [
+    {
+     "amount": 3,
+     "name": "White Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.5,
+     "name": "Black Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 400,
+     "name": "Extra Firm Tofu",
+     "unit": "g"
+    },
+    {
+     "amount": 500,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 200,
+     "name": "Shiitake Mushrooms",
+     "unit": "g"
+    },
+    {
+     "amount": 2,
+     "name": "Doubanjiang",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1,
+     "name": "Sichuan Peppercorns",
+     "unit": "tsp"
+    },
+    {
+     "amount": 2,
+     "name": "Sesame Oil",
+     "unit": "tsp"
+    },
+    {
+     "amount": 1,
+     "name": "Soy Sauce",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 3,
+     "name": "Garlic",
+     "unit": "cloves"
+    },
+    {
+     "amount": 1,
+     "name": "Ginger",
+     "unit": "inch"
+    }
+   ],
+   "steps": [
+    "Cook your white and black rice blend.",
+    "Sauté minced mushrooms, garlic, and ginger with sesame oil until browned and highly fragrant.",
+    "Add Doubanjiang and crushed Sichuan peppercorns, cooking for 30 seconds to release aromatic red oils.",
+    "Push mushrooms to the side, pour in egg whites, let them set into firm curds, and scramble.",
+    "Fold in your cubed extra-firm tofu and soy sauce mixed with 1/2 cup of water. Simmer on high until thickened."
+   ],
+   "title": "Vegetarian Mapo Tofu",
+   "type": "Lunch",
+   "week": [
+    2
+   ]
+  },
+  "mugcake": {
+   "baseMacros": {
+    "cal": 99,
+    "carb": 11,
+    "fat": 3.4,
+    "fib": 3,
+    "prot": 10.4
+   },
+   "desc": "A dense personal cake cooked on-demand, featuring a molten dark chocolate chip center.",
+   "freezerTips": "Do not cook and freeze this cake! Instead, pre-mix the dry base in a mason jar. When you want a sweet treat, scoop out 4.5 tablespoons, add your wet ingredients, and microwave on-demand.",
+   "id": "mugcake",
+   "ingredients": [
+    {
+     "amount": 2,
+     "name": "Oat Flour",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 2,
+     "name": "Unsweetened Cocoa Powder",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1,
+     "name": "Whey Protein Powder",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.5,
+     "name": "Dark Chocolate Chips",
+     "unit": "tsp"
+    },
+    {
+     "amount": 1,
+     "name": "Sugar-Free Syrup",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 3,
+     "name": "Unsweetened Almond Milk",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.5,
+     "name": "Baking Powder",
+     "unit": "tsp"
+    }
+   ],
+   "steps": [
+    "Mix cocoa powder, oat flour, whey protein, and baking powder together in a jar.",
+    "When ready to bake, scoop dry base into a mug, add syrup and almond milk, and stir until completely smooth.",
+    "Push dark chocolate chips into the center of the batter.",
+    "Drop microwave power level to 70% to prevent dry seizing.",
+    "Microwave for 50-60 seconds (it should look slightly wet on the top), let rest for 1 minute, and serve."
+   ],
+   "title": "Protein Mug Cake",
+   "type": "Dessert",
+   "week": [
+    4
+   ]
+  },
+  "pancakes": {
+   "baseMacros": {
+    "cal": 183,
+    "carb": 5.5,
+    "fat": 5,
+    "fib": 1,
+    "prot": 28
+   },
+   "desc": "A clean low-fat breakfast utilizing whole eggs, Greek yogurt, and high quality vanilla whey.",
+   "freezerTips": "Stack cooked pancakes with sheets of parchment paper in between to prevent sticking. Seal in a freezer bag. Pop frozen pancakes straight into a toaster on a medium setting for a quick hot breakfast!",
+   "id": "pancakes",
+   "ingredients": [
+    {
+     "amount": 1,
+     "name": "Large Eggs",
+     "unit": "whole"
+    },
+    {
+     "amount": 0.25,
+     "name": "0% Nonfat Greek Yogurt",
+     "unit": "cup"
+    },
+    {
+     "amount": 1,
+     "name": "Vanilla Whey Protein Powder",
+     "unit": "scoop"
+    },
+    {
+     "amount": 0.5,
+     "name": "Baking Powder",
+     "unit": "tsp"
+    },
+    {
+     "amount": 0.25,
+     "name": "Monk Fruit Sweetener",
+     "unit": "cup"
+    }
+   ],
+   "steps": [
+    "Whisk eggs and nonfat Greek yogurt together in a medium bowl until smooth.",
+    "Fold in whey protein, baking powder, and monk fruit sweetener.",
+    "Heat a non-stick griddle over medium-low heat. Spray with light oil spray.",
+    "Spoon small dollops of batter onto the hot surface. Cook until bubbles form around the edges.",
+    "Carefully flip and cook for an additional minute until fluffy and fully set."
+   ],
+   "title": "Protein Pancakes",
+   "type": "Breakfast",
+   "week": [
+    3
+   ]
+  },
+  "proteinIceCream": {
+   "baseMacros": {
+    "cal": 171,
+    "carb": 17,
+    "fat": 3,
+    "fib": 1,
+    "prot": 26
+   },
+   "desc": "A Ninja Creami high-protein chocolate ice cream from cottage cheese + Fairlife chocolate milk. Amounts shown are PER SERVING (1/2 pint) — scale to 2x in the Recipe Scaler for the full 1-pint batch.",
+   "freezerTips": "For leftovers, smooth the surface flat, put the lid on, and freeze up to 4 days. To finish later: lock the frozen pint back into the Creami, pour 1 tbsp chocolate milk on top, and run \"Re-spin\" to friction-thaw to soft-serve (do not scoop straight from the freezer).",
+   "id": "proteinIceCream",
+   "ingredients": [
+    {
+     "amount": 0.5,
+     "name": "Low-Fat Cottage Cheese (2%)",
+     "unit": "cup"
+    },
+    {
+     "amount": 0.5,
+     "name": "Fairlife 2% Chocolate Milk",
+     "unit": "cup"
+    },
+    {
+     "amount": 0.5,
+     "name": "Chocolate Protein Powder",
+     "unit": "scoop"
+    },
+    {
+     "amount": 2,
+     "name": "Gluten-Free Oreos (optional mix-in)",
+     "unit": "cookies"
+    }
+   ],
+   "steps": [
+    "BLEND: Add the cottage cheese, chocolate milk, and protein powder to a high-speed blender. Blend until completely smooth with no curds remaining.",
+    "FREEZE: Pour into a Ninja Creami pint container, attach the lid, and freeze on a level surface for 18-24 hours.",
+    "FIRST SPIN: Lock the frozen pint into the outer bowl, load the machine, and run the \"Ice Cream\" (or \"Lite Ice Cream\") cycle.",
+    "RE-SPIN: If the texture looks powdery or crumbly, add 1 tbsp chocolate milk to the center and run \"Re-spin\" until creamy.",
+    "MIX-INS: Hollow out a channel down the center, add the crushed gluten-free Oreos (or chips / M&Ms), and run the \"Mix-in\" cycle. Serve immediately."
+   ],
+   "title": "Cottage Cheese Chocolate Protein Ice Cream",
+   "type": "Dessert",
+   "week": []
+  },
+  "pudding": {
+   "baseMacros": {
+    "cal": 74,
+    "carb": 3.5,
+    "fat": 1.8,
+    "fib": 0.5,
+    "prot": 11
+   },
+   "desc": "A rich chocolate post-workout snack utilizing fat-free Greek yogurt and high quality cocoa. Rounded to 0.25x portion.",
+   "freezerTips": "Due to the dairy base, do not freeze this dish solid as it will split. Instead, store it tightly in small jars inside the refrigerator. It stays completely fresh and smooth for up to 5 days.",
+   "id": "pudding",
+   "ingredients": [
+    {
+     "amount": 7.75,
+     "name": "Chocolate Protein Powder",
+     "unit": "g"
+    },
+    {
+     "amount": 37.5,
+     "name": "Fat-Free Vanilla Greek Yogurt",
+     "unit": "g"
+    },
+    {
+     "amount": 6.25,
+     "name": "Dark Cocoa Powder",
+     "unit": "g"
+    },
+    {
+     "amount": 1.75,
+     "name": "Chocolate Chips",
+     "unit": "g"
+    },
+    {
+     "amount": 0.1,
+     "name": "Sea Salt",
+     "unit": "pinch"
+    }
+   ],
+   "steps": [
+    "Add all dry ingredients (protein powder, dark cocoa, pinch of sea salt) into a small jar or bowl.",
+    "Whisk together with the fat-free vanilla Greek yogurt until smooth and lump-free.",
+    "Cover and store in the refrigerator to allow the cocoa powder to fully hydrate for 15 minutes before serving.",
+    "Top with chocolate chips and enjoy."
+   ],
+   "title": "Double Chocolate Protein Pudding",
+   "type": "Dessert",
+   "week": [
+    2
+   ]
+  },
+  "ramen": {
+   "baseMacros": {
+    "cal": 689,
+    "carb": 39.4,
+    "fat": 14,
+    "fib": 12,
+    "prot": 62.8
+   },
+   "desc": "Hearty extra-firm tofu blocks and real black/white rice simmered in a hot Gochujang spinach broth, topped with soft scrambled egg whites.",
+   "freezerTips": "Divide the broth and tofu blocks into separate airtight layers if possible. Freeze broth solid. To serve, defrost in microwave on high for 2 minutes, stir, then heat for an additional 1.5 minutes.",
+   "id": "ramen",
+   "ingredients": [
+    {
+     "amount": 3,
+     "name": "White Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.5,
+     "name": "Black Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 400,
+     "name": "Extra Firm Tofu",
+     "unit": "g"
+    },
+    {
+     "amount": 500,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 200,
+     "name": "Fresh Spinach",
+     "unit": "g"
+    },
+    {
+     "amount": 4,
+     "name": "Gochujang",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 2,
+     "name": "Low-Sodium Soy Sauce",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 3,
+     "name": "Garlic & Ginger",
+     "unit": "cloves/1-inch knob"
+    },
+    {
+     "amount": 1,
+     "name": "Vegetable Broth",
+     "unit": "Liter"
+    }
+   ],
+   "steps": [
+    "Cut the extra-firm tofu into bite-size blocks and pan-sear (or air-fry) until lightly golden and firm.",
+    "Cook your white/black rice mixture.",
+    "Sauté minced garlic and ginger. Whisk in Gochujang, soy sauce, and vegetable broth; simmer.",
+    "Add your rice and fresh spinach to the broth and cook until spinach is wilted.",
+    "Scramble egg whites separately in a skillet until velvety.",
+    "Drop the tofu blocks into the broth to warm through, then divide into containers with the egg whites and store."
+   ],
+   "title": "Spicy Ramen-Style Tofu Soup",
+   "type": "Lunch",
+   "week": [
+    4
+   ]
+  },
+  "silkyTofu": {
+   "baseMacros": {
+    "cal": 684,
+    "carb": 36,
+    "fat": 22.3,
+    "fib": 7.2,
+    "prot": 57.1
+   },
+   "desc": "Air-fried extra-firm tofu cubes layered over a rich, soft-stirred egg white vegetable sauce.",
+   "freezerTips": "Make sure to let the dish cool 100% to room temp before sealing to prevent condensation-induced ice crystals. If reheating at work, stir midway to recombine the velvety cornstarch slurry.",
+   "id": "silkyTofu",
+   "ingredients": [
+    {
+     "amount": 2.7,
+     "name": "White Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.35,
+     "name": "Black Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 360,
+     "name": "Extra Firm Tofu",
+     "unit": "g"
+    },
+    {
+     "amount": 450,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 180,
+     "name": "Shiitake Mushrooms",
+     "unit": "g"
+    },
+    {
+     "amount": 3.6,
+     "name": "Soy Sauce",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 3.6,
+     "name": "Oyster Sauce",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.9,
+     "name": "Cornstarch",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.5,
+     "name": "Sesame Oil",
+     "unit": "tsp"
+    },
+    {
+     "amount": 5,
+     "name": "Garlic",
+     "unit": "cloves"
+    },
+    {
+     "amount": 1,
+     "name": "Ginger",
+     "unit": "inch"
+    }
+   ],
+   "steps": [
+    "Air-fry the cubed extra-firm tofu at 400°F (200°C) for 12-15 minutes until golden.",
+    "Cook your white/black rice mixture.",
+    "Sauté sliced mushrooms, garlic, and ginger in a large pan with a splash of water and sesame oil.",
+    "Push vegetables to the side. Pour in egg whites, stirring constantly to mimic soft, velvety silky scrambled curds.",
+    "Whisk soy sauce, oyster sauce, cornstarch, and water together. Pour over the eggs, add tofu cubes, and simmer until glazed."
+   ],
+   "title": "Soft Tofu with Silky Egg Sauce",
+   "type": "Dinner",
+   "week": [
+    2
+   ]
+  },
+  "tofuPatties": {
+   "baseMacros": {
+    "cal": 691,
+    "carb": 22.5,
+    "fat": 25,
+    "fib": 7.5,
+    "prot": 63
+   },
+   "desc": "Air-fried edamame-tofu patties over scrambled egg whites, accompanied by a cilantro-jalapeno cream sauce.",
+   "freezerTips": "Air-fry the patties fully before freezing. Store in airtight Ziplocs with parchment paper separating them. Reheat in an air fryer at 350°F (175°C) for 6 minutes to restore crispiness.",
+   "id": "tofuPatties",
+   "ingredients": [
+    {
+     "amount": 500,
+     "name": "Extra Firm Tofu",
+     "unit": "g"
+    },
+    {
+     "amount": 625,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 187,
+     "name": "Shelled Edamame",
+     "unit": "g"
+    },
+    {
+     "amount": 1.25,
+     "name": "0% Nonfat Greek Yogurt",
+     "unit": "cups"
+    },
+    {
+     "amount": 5,
+     "name": "Almond Flour",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.25,
+     "name": "Cornstarch",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1,
+     "name": "Fresh Cilantro",
+     "unit": "bunch"
+    },
+    {
+     "amount": 2,
+     "name": "Jalapeño Peppers",
+     "unit": "whole"
+    },
+    {
+     "amount": 5,
+     "name": "Garlic",
+     "unit": "cloves"
+    }
+   ],
+   "steps": [
+    "Drain tofu, press thoroughly, and mash together with edamame, almond flour, cornstarch, and 50g of egg whites.",
+    "Form into patties and air-fry at 375°F (190°C) for 10-12 minutes, flip, and air-fry for 5-8 more minutes.",
+    "Scramble the remaining egg whites in a skillet until fully set.",
+    "Blend Greek yogurt, cilantro, jalapeños, garlic, and a splash of lime juice until smooth and creamy.",
+    "Plate the crispy patties over the set egg-white scramble, drizzle with sauce, and enjoy."
+   ],
+   "title": "Crispy Tofu Patties",
+   "type": "Dinner",
+   "week": [
+    3
+   ]
+  },
+  "tofuStirfry": {
+   "baseMacros": {
+    "cal": 662,
+    "carb": 31,
+    "fat": 22,
+    "fib": 6,
+    "prot": 54.1
+   },
+   "desc": "An ultimate zero-waste high-volume dinner utilizing firm extra-firm tofu chunks, veggies, and egg whites. Perfect for meal prep and freezing, with a delicious gochujang-soy glaze.",
+   "freezerTips": "Freezing extra-firm tofu gives it a highly enjoyable sponge-like, chewy texture. Store prepped bowls in the freezer. To reheat, microwave with a damp paper towel on top to retain maximum moisture.",
+   "id": "tofuStirfry",
+   "ingredients": [
+    {
+     "amount": 2.55,
+     "name": "White Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.275,
+     "name": "Black Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 340,
+     "name": "Extra Firm Tofu",
+     "unit": "g"
+    },
+    {
+     "amount": 425,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 170,
+     "name": "Shelled Edamame",
+     "unit": "g"
+    },
+    {
+     "amount": 170,
+     "name": "Broccoli Florets",
+     "unit": "g"
+    },
+    {
+     "amount": 1.7,
+     "name": "Gochujang",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.7,
+     "name": "Soy Sauce",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.25,
+     "name": "Neutral Cooking Oil",
+     "unit": "tbsp"
+    }
+   ],
+   "steps": [
+    "Cook white and black rice blend together.",
+    "Drain and pat dry extra-firm tofu. Sauté the tofu cubes in a large wok with oil until golden brown.",
+    "In corporate the broccoli and edamame. Sauté on medium with a splash of water, then cover and steam for 3 minutes.",
+    "Push vegetables to the sides. Pour egg whites in the center; cook and scramble until firm.",
+    "Combine Gochujang and soy sauce, pour over the mixture, and toss on high heat for 2 minutes to glaze."
+   ],
+   "title": "Tofu & Egg White Stir-Fry",
+   "type": "Dinner",
+   "week": [
+    1
+   ]
+  },
+  "vegStirfry": {
+   "baseMacros": {
+    "cal": 765,
+    "carb": 58,
+    "fat": 18,
+    "fib": 15.6,
+    "prot": 73
+   },
+   "desc": "A high-volume lunch stir-fry packed with edamame, fresh broccoli, and onions, served with your real white/black rice mixture.",
+   "freezerTips": "Freeze in solid plastic meal prep containers for up to 3 months. To reheat, microwave directly from frozen on medium-high for 3 minutes, stir, and microwave for another 1-2 minutes until steaming.",
+   "id": "vegStirfry",
+   "ingredients": [
+    {
+     "amount": 1.95,
+     "name": "White Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 0.975,
+     "name": "Black Rice (Uncooked)",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 325,
+     "name": "Kirkland Liquid Egg Whites",
+     "unit": "g"
+    },
+    {
+     "amount": 195,
+     "name": "Shelled Edamame",
+     "unit": "g"
+    },
+    {
+     "amount": 130,
+     "name": "Button Mushrooms",
+     "unit": "g"
+    },
+    {
+     "amount": 130,
+     "name": "Broccoli Florets",
+     "unit": "g"
+    },
+    {
+     "amount": 65,
+     "name": "Carrots",
+     "unit": "g"
+    },
+    {
+     "amount": 0.3,
+     "name": "Red Onion",
+     "unit": "large"
+    },
+    {
+     "amount": 2,
+     "name": "Garlic",
+     "unit": "cloves"
+    },
+    {
+     "amount": 2,
+     "name": "Sesame Cooking Oil",
+     "unit": "tsp"
+    },
+    {
+     "amount": 1.3,
+     "name": "Gochujang",
+     "unit": "tbsp"
+    },
+    {
+     "amount": 1.3,
+     "name": "Coconut Aminos",
+     "unit": "tbsp"
+    }
+   ],
+   "steps": [
+    "Cook the scaled white and black rice mixture together in a small pot or rice cooker on Sunday.",
+    "In your largest wok, sauté the chopped mushrooms, garlic, and onions with sesame oil until fragrant and caramelized.",
+    "Add broccoli, chopped carrots, and 3 tbsp of water. Cover and let steam for 4 minutes.",
+    "Toss in edamame and continue cooking on high heat.",
+    "In a separate non-stick skillet, scramble your egg whites in batches until they form firm curds.",
+    "Mix Gochujang and coconut aminos. Combine the firm curds with the vegetable base, drizzle the sauce, and toss on high for 2 minutes."
+   ],
+   "title": "Vegetable & Egg White Stir Fry",
+   "type": "Lunch",
+   "week": [
+    1
+   ]
+  }
+ },
+ "weeksPlan": {
+  "1": {
+   "breakfast": "bagel",
+   "dessert": "blondies",
+   "dinner": "tofuStirfry",
+   "lunch": "vegStirfry"
+  },
+  "2": {
+   "breakfast": "bagel",
+   "dessert": "pudding",
+   "dinner": "silkyTofu",
+   "lunch": "mapoTofu"
+  },
+  "3": {
+   "breakfast": "pancakes",
+   "dessert": "blondies",
+   "dinner": "tofuPatties",
+   "lunch": "curryLunch"
+  },
+  "4": {
+   "breakfast": "frittata",
+   "dessert": "mugcake",
+   "dinner": "laab",
+   "lunch": "ramen"
+  }
+ },
+ "snacksBaseline": {
+  "cal": 80,
+  "carb": 18,
+  "fat": 0,
+  "fib": 8,
+  "prot": 1
+ },
+ "packagingDB": {
+  "brami pasta": {
+   "caseLabel": "case",
+   "gramsPerUnit": 454,
+   "retailUnit": "box",
+   "unitLabel": "boxes",
+   "unitsPerCase": 4,
+   "verified": true
+  },
+  "broccoli florets": {
+   "caseLabel": "case",
+   "gramsPerUnit": 454,
+   "retailUnit": "bag",
+   "unitLabel": "bags",
+   "unitsPerCase": 4,
+   "verified": true
+  },
+  "button mushrooms": {
+   "caseLabel": "case",
+   "gramsPerUnit": 680,
+   "retailUnit": "pack",
+   "unitLabel": "packs",
+   "unitsPerCase": 1,
+   "verified": true
+  },
+  "extra firm tofu": {
+   "caseLabel": "pack",
+   "gramsPerUnit": 454,
+   "retailUnit": "container",
+   "unitLabel": "containers",
+   "unitsPerCase": 4,
+   "verified": true
+  },
+  "kirkland liquid egg whites": {
+   "caseLabel": "case",
+   "gramsPerUnit": 454,
+   "retailUnit": "carton",
+   "unitLabel": "cartons",
+   "unitsPerCase": 6,
+   "verified": true
+  },
+  "shelled edamame": {
+   "caseLabel": "case",
+   "gramsPerUnit": 227,
+   "retailUnit": "bag",
+   "unitLabel": "bags",
+   "unitsPerCase": 12,
+   "verified": true
+  },
+  "sola blueberry bagel": {
+   "caseLabel": "case",
+   "gramsPerUnit": 85,
+   "retailUnit": "bagel",
+   "unitLabel": "bagels",
+   "unitsPerCase": 4,
+   "verified": true
+  }
+ }
+}

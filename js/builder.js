@@ -15,7 +15,8 @@
     var configured = cfg.url && cfg.anonKey &&
         cfg.url.indexOf('YOUR-PROJECT-ID') === -1 && cfg.anonKey.indexOf('YOUR-PUBLIC') === -1;
     var sbLib = window.supabase;
-    var sb = (configured && sbLib && sbLib.createClient) ? sbLib.createClient(cfg.url, cfg.anonKey) : null;
+    // Reuse the data-layer's client (shared auth session) when available.
+    var sb = window.supabaseClient || ((configured && sbLib && sbLib.createClient) ? sbLib.createClient(cfg.url, cfg.anonKey) : null);
 
     // ---- state -------------------------------------------------------------
     var signedIn = false;
@@ -409,10 +410,9 @@
         var res = await sb.from('recipes').select(SELECT).order('created_at', { ascending: true });
         if (res.error) { console.error('Load recipes failed:', res.error.message); return; }
         savedRaw = res.data || [];
-        unregisterAllSb();
-        savedRaw.forEach(function (r) { registerRecipe(sbToApp(r)); });
         renderSaved();
-        refreshAppViews();
+        // Note: merging custom recipes into the global `recipes` (so they show on the
+        // Dashboard/Recipes pages) is handled by js/data-layer.js on each page load.
     }
 
     // ---- boot --------------------------------------------------------------
@@ -450,7 +450,9 @@
         renderDraft();
         sb.auth.getSession().then(function (r) { renderAuth(r.data.session); });
         sb.auth.onAuthStateChange(function (_e, session) { renderAuth(session); });
-        load();
+        // Wait for the stock data (window.DATA_READY) before loading custom recipes and
+        // re-rendering, so we merge into a populated `recipes` global, not an empty one.
+        (window.DATA_READY || Promise.resolve()).then(load).catch(function () { load(); });
     } catch (e) {
         console.error('Add Recipe tab init failed:', e);
         showConfigWarning('<strong>Add Recipe tab failed to start.</strong> ' + esc(e.message) + ' — the rest of the app is unaffected.');

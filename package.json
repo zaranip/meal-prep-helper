@@ -1,0 +1,15 @@
+{
+  "name": "meal-prep-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static meal-prep dashboard (Supabase-backed, multi-page). No build step for the app itself; Node scripts are dev tooling only.",
+  "scripts": {
+    "seed": "node scripts/gen-seed.js",
+    "verify": "node scripts/verify-seed.js",
+    "check-live": "node scripts/check-live.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

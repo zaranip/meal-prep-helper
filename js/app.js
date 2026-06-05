@@ -70,8 +70,7 @@ function getRecipe(key) { return goalScaled(resolveRecipe(recipes[key])); }
 // Scales the whole plan to the user's calorie goal. At the default 1800 goal the
 // factor is 1 and nothing changes; e.g. a 900 goal halves every recipe (macros + amounts),
 // so the scaler's 1.0x baseline becomes half the original portions.
-let calorieGoal = 1800;
-const BASE_CALORIE_GOAL = 1800;
+// calorieGoal + BASE_CALORIE_GOAL now live in js/state.js (persisted across pages).
 function goalFactor() { return (calorieGoal > 0 ? calorieGoal : BASE_CALORIE_GOAL) / BASE_CALORIE_GOAL; }
 
 // Return a recipe with macros AND ingredient amounts scaled to the current goal (identity at goal 1800).
@@ -90,7 +89,7 @@ function baseRecipe(key) { return goalScaled(recipes[key]); }
 // Some ingredients are only consumed as whole units (eggs, bagels, potatoes,
 // bread slices, curry cubes...). In 'whole' mode their SCALED amount is rounded to
 // the nearest integer and the displayed macros are corrected for that rounding.
-let amountMode = 'exact'; // 'exact' (fractional, default) or 'whole' (discrete items rounded)
+// amountMode ('exact' | 'whole') now lives in js/state.js (persisted across pages).
 const DISCRETE_UNITS = new Set(['bagel', 'whole bagel', 'whole', 'slice', 'slices', 'medium', 'large', 'cube', 'clove', 'cloves', 'bag', 'bags', 'cookie', 'cookies']);
 function isDiscreteUnit(unit) { return DISCRETE_UNITS.has(String(unit).toLowerCase().trim()); }
 
@@ -139,26 +138,63 @@ function updateMealDropdownLabels(days) {
     });
 }
 
-function updateTabs() {
+        // Guarded listener helper — attaches only if the element exists on THIS page.
+        function onEl(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); }
+
+        // Select a recipe and show it on the Recipes page. If we're already on that page,
+        // just re-render; otherwise persist the choice and navigate there (multi-page).
+        function goToRecipe(key) {
+            if (!key) return;
+            selectedRecipeId = key;
+            if (typeof persistState === 'function') persistState();
+            if (document.getElementById('recipe-directory')) renderRecipeScaler();
+            else window.location.href = 'recipes.html';
+        }
+
+        // Drop any persisted meal/recipe selections that point at a recipe that no longer
+        // exists (e.g. a deleted custom recipe), so renders never hit `undefined`.
+        function sanitizeSelections() {
+            const def = (typeof STATE_DEFAULTS !== 'undefined') ? STATE_DEFAULTS.customSelections : { breakfast: 'bagel', lunch: 'vegStirfry', dinner: 'tofuStirfry', dessert: 'blondies' };
+            ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(r => {
+                if (typeof customSelections !== 'undefined' && !recipes[customSelections[r]]) customSelections[r] = def[r];
+            });
+            if (!recipes[selectedRecipeId]) selectedRecipeId = 'bagel';
+        }
+
+        // Each tab is now its own page (document.body.dataset.page). updateTabs() re-renders
+        // whichever single view is present — kept as the name so existing call sites still work.
+        function updateTabs() {
+            const page = (document.body && document.body.dataset && document.body.dataset.page) || activeTab;
+            // legacy SPA tab styling/visibility (no-ops on the standalone pages)
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                const isSelected = btn.getAttribute('data-tab') === activeTab;
+                const isSelected = btn.getAttribute('data-tab') === page;
                 btn.classList.toggle('bg-white', isSelected);
                 btn.classList.toggle('shadow-sm', isSelected);
                 btn.classList.toggle('text-stoneNeutral-800', isSelected);
                 btn.classList.toggle('text-stoneNeutral-700', !isSelected);
             });
             document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.toggle('active', content.id === activeTab);
+                content.classList.toggle('active', content.id === page);
             });
-            if (activeTab === 'dashboard') {
-                renderWeeklyDashboard();
-            } else if (activeTab === 'recipes') {
-                renderRecipeScaler();
-            } else if (activeTab === 'prep') {
-                renderSundayPlanner();
-            } else if (activeTab === 'calendar') {
-                renderSchedule();
-            }
+            if (page === 'dashboard' && document.getElementById('meals-list')) renderWeeklyDashboard();
+            else if (page === 'recipes' && document.getElementById('recipe-directory')) renderRecipeScaler();
+            else if (page === 'prep' && document.getElementById('grocery-items-container')) renderSundayPlanner();
+            else if (page === 'calendar' && document.getElementById('schedule-container')) renderSchedule();
+        }
+
+        // Ensure custom (Supabase) recipes appear as options in the meal selectors.
+        function ensureCustomDropdownOptions() {
+            const map = { breakfast: 'breakfast-mix', lunch: 'lunch-mix', dinner: 'dinner-mix', dessert: 'dessert-mix', snack: 'dessert-mix' };
+            Object.keys(recipes).forEach(k => {
+                if (k.indexOf('sb_') !== 0) return;
+                const rec = recipes[k];
+                const sel = document.getElementById(map[rec.mealType] || 'dessert-mix');
+                if (!sel || sel.querySelector('option[value="' + k + '"]')) return;
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = rec.title + ' (' + Math.round(rec.baseMacros.cal) + ' kcal)';
+                sel.appendChild(opt);
+            });
         }
 
         // TAB 1: WEEKLY DASHBOARD
@@ -166,8 +202,10 @@ function updateTabs() {
             const container = document.getElementById('meals-list');
             container.innerHTML = '';
 
+            ensureCustomDropdownOptions();
             const dayDaysInput = document.getElementById('dashboard-days');
-            const dayDaysNum = parseInt(dayDaysInput.value) || 7;
+            if (dayDaysInput && document.activeElement !== dayDaysInput) dayDaysInput.value = prepDays;
+            const dayDaysNum = prepDays;
             document.getElementById('week-sum-title').innerText = `Weekly Cumulative Plan (${dayDaysNum} Days)` + (amountMode === 'whole' ? ' — Whole Units' : '');
 
             let dayCal = snacksBaseline.cal;
@@ -207,11 +245,7 @@ function updateTabs() {
                         <div class="text-center"><span class="block text-[10px] text-stoneNeutral-700 font-bold">FIB</span><span class="font-mono font-bold text-skyAccent">${Math.round(mm.fib * 10) / 10}g</span></div>
                     </div>
                 `;
-                card.addEventListener('click', () => {
-                    selectedRecipeId = m.key;
-                    activeTab = 'recipes';
-                    updateTabs();
-                });
+                card.addEventListener('click', () => goToRecipe(m.key));
                 container.appendChild(card);
             });
 
@@ -284,9 +318,6 @@ function updateTabs() {
                 valSnacksDesc.innerText = `${snackGroupCal.toFixed(0)} kcal (Exceeds 400 Target)`;
             }
 
-            // Sync prep days select inputs
-            document.getElementById('planner-days').value = dayDaysNum;
-
             // Update Pie Chart Caloric Contributions
             renderContributionPieChart(activeSelections, dayDaysNum);
         }
@@ -347,24 +378,29 @@ function updateTabs() {
             });
         }
 
-        // ===== Recipe inline editing (scaler) =====================================
-        // Tweak each ingredient's BASE amount and watch macros move live, then Save
-        // (persisted in localStorage for stock recipes) or Revert to the original.
-        // Macros move via the same DELTA method used elsewhere in the app: the verified
-        // baseMacros stay intact and only your edits adjust them.
-        const RECIPE_EDIT_KEY = 'mealPrep.recipeEdits.v1';
+        // ===== Recipe editing (scaler tab) ========================================
+        // An explicit "Edit recipe" mode lets you change amounts, ingredient names/units,
+        // add/remove ingredients, rename, edit the description and steps, plus notes.
+        // Macros recompute live and honestly: the verified baseMacros' UNTRACKED remainder
+        // (seasonings/items with no per-gram data) is preserved, and the TRACKED part is
+        // recomputed from the current ingredients. Save persists to localStorage (stock
+        // recipes); Revert restores the original. Works in any carb mode.
+        const RECIPE_EDIT_KEY = 'mealPrep.recipeEdits.v2';
         const pristineRecipes = {};   // id -> deep copy of the ORIGINAL recipe (pre-override)
-        let recipeEditStore = {};     // persisted (stock only): id -> {amounts:[], baseMacros:{}, notes:''}
+        let recipeEditStore = {};     // persisted (stock only): id -> full editable state
         const draftNotes = {};        // in-memory notes per recipe id (until Save)
+        let recipeEditMode = false;   // is the inline editor open?
 
         function loadRecipeEditStore() { try { return JSON.parse(localStorage.getItem(RECIPE_EDIT_KEY)) || {}; } catch (e) { return {}; } }
         function persistRecipeEditStore() { try { localStorage.setItem(RECIPE_EDIT_KEY, JSON.stringify(recipeEditStore)); } catch (e) { /* storage off */ } }
         function deepCopyRecipe(r) { return JSON.parse(JSON.stringify(r)); }
         function isCustomRecipe(id) { return String(id).indexOf('sb_') === 0; }
         function snapshotPristine(id) { if (!pristineRecipes[id] && recipes[id]) pristineRecipes[id] = deepCopyRecipe(recipes[id]); }
+        function escAttr(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+        function escHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
         // Per-gram macros for an ingredient at `amount` of its unit. Uses inline per-100g
-        // (custom recipes) or the ingredientDB (stock). null => not tracked, can't move macros.
+        // (custom items) or the ingredientDB (stock). null => not tracked, can't move macros.
         function ingMacrosForAmount(ing, amount) {
             if (ing._m100) {
                 let g = (ing.unit === 'g' || ing.unit === 'grams') ? amount : ingredientGrams(ing.name, amount, ing.unit);
@@ -376,35 +412,46 @@ function updateTabs() {
             if (g2 == null) return null;
             return macrosForGrams(ing.name, g2);
         }
-        function ingTracked(ing) { return ingMacrosForAmount(ing, 1) != null; }
+        function ingTracked(ing) { return ing.name && ing.name.trim() ? ingMacrosForAmount(ing, 1) != null : true; }
 
-        // The verified baseline edits are measured against: last saved, else the original.
-        function editAnchor(id) {
-            if (recipeEditStore[id]) return recipeEditStore[id];
-            const p = pristineRecipes[id] || recipes[id];
-            return { amounts: p.ingredients.map(function (i) { return i.amount; }), baseMacros: p.baseMacros };
-        }
-        // Recompute recipes[id].baseMacros = anchor.baseMacros + deltas from current amounts.
-        function recomputeBaseMacros(id) {
-            const a = editAnchor(id), out = Object.assign({}, a.baseMacros);
-            recipes[id].ingredients.forEach(function (ing, idx) {
-                const baseAmt = (a.amounts[idx] != null) ? a.amounts[idx] : ing.amount;
-                const now = ingMacrosForAmount(ing, ing.amount), was = ingMacrosForAmount(ing, baseAmt);
-                if (!now || !was) return; // untracked ingredient: leave macros unchanged
-                out.cal += now.cal - was.cal; out.prot += now.prot - was.prot; out.fat += now.fat - was.fat;
-                out.fib += now.fib - was.fib; out.carb += now.carb - was.carb;
+        // Sum macros of the TRACKED ingredients in a list (untracked contribute nothing).
+        function trackedSum(ings) {
+            const s = { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
+            (ings || []).forEach(function (ing) {
+                const m = ingMacrosForAmount(ing, ing.amount);
+                if (!m) return;
+                s.cal += m.cal; s.prot += m.prot; s.fat += m.fat; s.fib += m.fib; s.carb += m.carb;
             });
-            recipes[id].baseMacros = {
-                cal: Math.round(out.cal), prot: Math.round(out.prot * 10) / 10, fat: Math.round(out.fat * 10) / 10,
-                fib: Math.round(out.fib * 10) / 10, carb: Math.round(out.carb * 10) / 10
+            return s;
+        }
+        // baseMacros = (verified original base − tracked part of original) + tracked part now.
+        // The first bracket is the constant "untracked remainder" (seasonings etc.).
+        function computeBaseMacros(id) {
+            const p = pristineRecipes[id] || recipes[id];
+            const pb = p.baseMacros, pt = trackedSum(p.ingredients), ct = trackedSum(recipes[id].ingredients);
+            const v = {
+                cal: pb.cal - pt.cal + ct.cal, prot: pb.prot - pt.prot + ct.prot, fat: pb.fat - pt.fat + ct.fat,
+                fib: pb.fib - pt.fib + ct.fib, carb: pb.carb - pt.carb + ct.carb
             };
+            return { cal: Math.round(v.cal), prot: Math.round(v.prot * 10) / 10, fat: Math.round(v.fat * 10) / 10, fib: Math.round(v.fib * 10) / 10, carb: Math.round(v.carb * 10) / 10 };
+        }
+        function applyComputedMacros(id) { recipes[id].baseMacros = computeBaseMacros(id); }
+
+        // Snapshot of the editable fields, for dirty detection.
+        function editableSnapshot(r) {
+            return JSON.stringify({
+                title: r.title || '', desc: r.desc || '', steps: r.steps || [],
+                ingredients: (r.ingredients || []).map(function (i) { return { name: i.name, amount: i.amount, unit: i.unit }; })
+            });
+        }
+        function savedSnapshot(id) {
+            if (recipeEditStore[id] && recipeEditStore[id].snapshot) return recipeEditStore[id].snapshot;
+            return pristineRecipes[id] ? editableSnapshot(pristineRecipes[id]) : editableSnapshot(recipes[id]);
         }
         function recipeNotes(id) { return (draftNotes[id] != null) ? draftNotes[id] : ((recipeEditStore[id] && recipeEditStore[id].notes) || ''); }
         function recipeIsDirty(id) {
-            const a = editAnchor(id);
-            const amtChanged = recipes[id].ingredients.some(function (ing, idx) { return a.amounts[idx] !== ing.amount; });
-            const savedNotes = (recipeEditStore[id] && recipeEditStore[id].notes) || '';
-            return amtChanged || (draftNotes[id] != null && draftNotes[id] !== savedNotes);
+            const notesChanged = (draftNotes[id] != null && draftNotes[id] !== ((recipeEditStore[id] && recipeEditStore[id].notes) || ''));
+            return editableSnapshot(recipes[id]) !== savedSnapshot(id) || notesChanged;
         }
         // Boot: snapshot originals FIRST, then apply any saved stock edits on top.
         function initRecipeEdits() {
@@ -413,17 +460,23 @@ function updateTabs() {
             Object.keys(recipeEditStore).forEach(function (id) {
                 if (!recipes[id]) return;
                 const ed = recipeEditStore[id];
-                if (Array.isArray(ed.amounts)) ed.amounts.forEach(function (amt, idx) { if (recipes[id].ingredients[idx] && amt != null) recipes[id].ingredients[idx].amount = amt; });
-                if (ed.baseMacros) recipes[id].baseMacros = Object.assign({}, recipes[id].baseMacros, ed.baseMacros);
+                if (ed.title != null) recipes[id].title = ed.title;
+                if (ed.desc != null) recipes[id].desc = ed.desc;
+                if (Array.isArray(ed.steps)) recipes[id].steps = ed.steps.slice();
+                if (Array.isArray(ed.ingredients)) recipes[id].ingredients = ed.ingredients.map(function (i) { return Object.assign({}, i); });
+                applyComputedMacros(id);
             });
         }
         function saveRecipeEdits() {
             const id = selectedRecipeId;
             if (isCustomRecipe(id)) { setEditStatus('Custom recipes: edit & save them in the Add Recipe tab.', false); return; }
             recipeEditStore[id] = {
-                amounts: recipes[id].ingredients.map(function (i) { return i.amount; }),
+                title: recipes[id].title, desc: recipes[id].desc,
+                steps: (recipes[id].steps || []).slice(),
+                ingredients: recipes[id].ingredients.map(function (i) { return { name: i.name, amount: i.amount, unit: i.unit }; }),
                 baseMacros: Object.assign({}, recipes[id].baseMacros),
-                notes: recipeNotes(id)
+                notes: recipeNotes(id),
+                snapshot: editableSnapshot(recipes[id])
             };
             delete draftNotes[id];
             persistRecipeEditStore();
@@ -435,32 +488,104 @@ function updateTabs() {
             if (pristineRecipes[id]) recipes[id] = deepCopyRecipe(pristineRecipes[id]);
             delete recipeEditStore[id]; delete draftNotes[id];
             persistRecipeEditStore();
+            recipeEditMode = false;
             renderRecipeScaler();
             setEditStatus('Reverted to original.', true);
         }
+        function toggleRecipeEditMode() { recipeEditMode = !recipeEditMode; renderRecipeScaler(); }
         function setEditStatus(msg, ok) {
             const el = document.getElementById('recipe-edit-status');
             if (!el) return;
             el.textContent = msg || '';
-            el.className = 'text-[11px] font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent');
+            el.className = 'text-[11px] font-semibold ml-1 mr-auto ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent');
         }
         function updateEditToolbar() {
             const id = selectedRecipeId;
             const custom = isCustomRecipe(id), dirty = recipeIsDirty(id), saved = !!recipeEditStore[id];
+            const editBtn = document.getElementById('recipe-edit-btn');
             const saveBtn = document.getElementById('recipe-save-btn');
             const revertBtn = document.getElementById('recipe-revert-btn');
-            if (saveBtn) { const dis = custom || !dirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Edit custom recipes in the Add Recipe tab' : ''; }
+            if (editBtn) editBtn.innerHTML = recipeEditMode ? 'Done editing' : '&#9999;&#65039; Edit recipe';
+            if (saveBtn) { const dis = custom || !dirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Custom recipes save in the Add Recipe tab' : ''; }
             if (revertBtn) { const can = dirty || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
             if (dirty) setEditStatus(custom ? 'Live preview — custom recipes save in the Add Recipe tab' : 'Unsaved changes', false);
             else setEditStatus(custom ? 'Custom recipe — edit in Add Recipe tab' : (saved ? 'Saved edits applied' : ''), true);
         }
         function setScalerMacros(current, mult) {
-            const rdelta = (amountMode === 'whole') ? roundingMacroDelta(current, mult) : { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
+            const rdelta = (amountMode === 'whole' && current.ingredients) ? roundingMacroDelta(current, mult) : { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
             document.getElementById('macro-cal').innerText = Math.round(current.baseMacros.cal * mult + rdelta.cal) + ' kcal';
             document.getElementById('macro-prot').innerText = Math.round(current.baseMacros.prot * mult + rdelta.prot) + 'g';
             document.getElementById('macro-fat').innerText = Math.round(current.baseMacros.fat * mult + rdelta.fat) + 'g';
             document.getElementById('macro-fib').innerText = Math.round(current.baseMacros.fib * mult + rdelta.fib) + 'g';
             document.getElementById('macro-carb').innerText = Math.round(current.baseMacros.carb * mult + rdelta.carb) + 'g';
+        }
+
+        // ----- Inline recipe editor (Edit mode) -----------------------------------
+        function recomputeAndRefresh(id) { applyComputedMacros(id); setScalerMacros(recipes[id], 1); updateEditToolbar(); }
+        function renderRecipeEditor(id) {
+            const host = document.getElementById('recipe-editor');
+            if (!host) return;
+            const r = recipes[id];
+            applyComputedMacros(id);
+            setScalerMacros(recipes[id], 1); // live BASE (1x) totals in the macro grid above
+
+            const dbOptions = Object.keys(ingredientDB).map(function (n) { return '<option value="' + escAttr(n) + '">'; }).join('');
+            host.innerHTML =
+                '<div class="space-y-4">' +
+                    '<div class="grid sm:grid-cols-2 gap-3">' +
+                        '<label class="text-xs font-semibold text-stoneNeutral-700">Title<input id="edit-title" class="mt-1 w-full bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 text-sm" value="' + escAttr(r.title || '') + '"></label>' +
+                        '<label class="text-xs font-semibold text-stoneNeutral-700">Description<input id="edit-desc" class="mt-1 w-full bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 text-sm" value="' + escAttr(r.desc || '') + '"></label>' +
+                    '</div>' +
+                    '<div>' +
+                        '<div class="flex justify-between items-center border-b border-stoneNeutral-200 pb-1 mb-2">' +
+                            '<h4 class="font-bold text-stoneNeutral-900 text-sm">Ingredients</h4>' +
+                            '<button id="edit-add-ing" class="text-xs font-bold text-emeraldAccent hover:underline">+ Add ingredient</button>' +
+                        '</div>' +
+                        '<p class="text-[10px] text-stoneNeutral-700 mb-2 italic">Edit name, amount, or unit. Pick a known ingredient (from the suggestions) so macros track; custom names are flagged.</p>' +
+                        '<ul id="edit-ing-list" class="space-y-2"></ul>' +
+                    '</div>' +
+                    '<label class="block text-xs font-semibold text-stoneNeutral-700">Steps (one per line)' +
+                        '<textarea id="edit-steps" rows="5" class="mt-1 w-full bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 text-sm">' + escHtml((r.steps || []).join('\n')) + '</textarea></label>' +
+                '</div>' +
+                '<datalist id="ing-db-list">' + dbOptions + '</datalist>';
+
+            renderEditIngList(id);
+            document.getElementById('edit-title').addEventListener('input', function (e) { r.title = e.target.value; updateEditToolbar(); });
+            document.getElementById('edit-desc').addEventListener('input', function (e) { r.desc = e.target.value; updateEditToolbar(); });
+            document.getElementById('edit-steps').addEventListener('input', function (e) { r.steps = e.target.value.split('\n'); updateEditToolbar(); });
+            document.getElementById('edit-add-ing').addEventListener('click', function () { r.ingredients.push({ name: '', amount: 0, unit: 'g' }); renderEditIngList(id); recomputeAndRefresh(id); });
+        }
+        function renderEditIngList(id) {
+            const ul = document.getElementById('edit-ing-list');
+            if (!ul) return;
+            const r = recipes[id];
+            ul.innerHTML = '';
+            if (!r.ingredients.length) { ul.innerHTML = '<li class="text-xs text-stoneNeutral-700 italic">No ingredients yet — use “+ Add ingredient”.</li>'; return; }
+            r.ingredients.forEach(function (ing, idx) {
+                const tracked = ingTracked(ing);
+                const li = document.createElement('li');
+                li.className = 'flex flex-wrap items-center gap-1.5';
+                li.innerHTML =
+                    '<input class="edit-ing-name flex-1 min-w-[150px] bg-white border border-stoneNeutral-300 rounded px-2 py-1 text-sm" list="ing-db-list" value="' + escAttr(ing.name) + '" placeholder="ingredient name">' +
+                    '<input class="edit-ing-amt w-16 bg-white border border-stoneNeutral-300 rounded px-1.5 py-1 text-right text-sm" type="number" min="0" step="0.1" value="' + ing.amount + '">' +
+                    '<input class="edit-ing-unit w-20 bg-white border border-stoneNeutral-300 rounded px-1.5 py-1 text-sm" list="unit-list" value="' + escAttr(ing.unit) + '" placeholder="unit">' +
+                    '<button class="edit-ing-del text-amberAccent font-bold px-1.5" title="Remove ingredient">&times;</button>' +
+                    (tracked ? '' : '<span class="edit-untracked basis-full text-[10px] text-amberAccent">macros not tracked for this name/unit — amount only</span>');
+                const flagSpan = li.querySelector('.edit-untracked');
+                const nameInput = li.querySelector('.edit-ing-name');
+                const unitInput = li.querySelector('.edit-ing-unit');
+                function refreshFlag() {
+                    const ok = ingTracked(ing);
+                    let f = li.querySelector('.edit-untracked');
+                    if (ok && f) f.remove();
+                    if (!ok && !f) { const s = document.createElement('span'); s.className = 'edit-untracked basis-full text-[10px] text-amberAccent'; s.textContent = 'macros not tracked for this name/unit — amount only'; li.appendChild(s); }
+                }
+                nameInput.addEventListener('input', function (e) { ing.name = e.target.value; recomputeAndRefresh(id); refreshFlag(); });
+                li.querySelector('.edit-ing-amt').addEventListener('input', function (e) { let v = parseFloat(e.target.value); if (isNaN(v) || v < 0) v = 0; ing.amount = v; recomputeAndRefresh(id); });
+                unitInput.addEventListener('input', function (e) { ing.unit = e.target.value; recomputeAndRefresh(id); refreshFlag(); });
+                li.querySelector('.edit-ing-del').addEventListener('click', function () { r.ingredients.splice(idx, 1); renderEditIngList(id); recomputeAndRefresh(id); });
+                ul.appendChild(li);
+            });
         }
 
         // TAB 2: RECIPE SCALER
@@ -480,66 +605,71 @@ function updateTabs() {
                 `;
                 btn.addEventListener('click', () => {
                     selectedRecipeId = r.id;
+                    recipeEditMode = false;   // leaving a recipe exits its editor
                     closeDeepDive();
                     renderRecipeScaler();
                 });
                 dir.appendChild(btn);
             });
 
-            const current = getRecipe(selectedRecipeId);
             document.getElementById('workspace-loading').classList.add('hidden');
             document.getElementById('workspace-content').classList.remove('hidden');
-
-            document.getElementById('recipe-title').innerText = current.title;
-            document.getElementById('recipe-desc').innerText = current.desc;
-            document.getElementById('recipe-type').innerText = current.type;
-            document.getElementById('recipe-freezer-tips').innerText = current.freezerTips;
-            
-            const scalingTipElement = document.getElementById('recipe-scaling-tip');
-            if (current.scalingTip) {
-                scalingTipElement.innerText = current.scalingTip;
-                scalingTipElement.classList.remove('hidden');
-            } else {
-                scalingTipElement.classList.add('hidden');
-            }
 
             snapshotPristine(selectedRecipeId);
             const notesEl = document.getElementById('recipe-notes');
             if (notesEl) notesEl.value = recipeNotes(selectedRecipeId);
 
-            const multiplierInput = document.getElementById('multiplier-input');
-            scaleRecipe(parseFloat(multiplierInput.value));
+            const editor = document.getElementById('recipe-editor');
+            const readView = document.getElementById('scaler-readview');
+            const controls = document.getElementById('scaler-controls');
+            const tipEl = document.getElementById('recipe-scaling-tip');
+
+            if (recipeEditMode) {
+                // EDIT MODE: hide the scaling/read view, show the full editor.
+                if (controls) controls.classList.add('hidden');
+                if (readView) readView.classList.add('hidden');
+                document.getElementById('carb-toggle-wrap').classList.add('hidden');
+                document.getElementById('macro-change-box').classList.add('hidden');
+                if (tipEl) tipEl.classList.add('hidden');
+                if (editor) editor.classList.remove('hidden');
+                const r = recipes[selectedRecipeId];
+                document.getElementById('recipe-title').innerText = r.title || '';
+                document.getElementById('recipe-desc').innerText = r.desc || '';
+                document.getElementById('recipe-type').innerText = r.type || '';
+                renderRecipeEditor(selectedRecipeId);
+            } else {
+                // READ MODE: normal scaling view.
+                if (editor) editor.classList.add('hidden');
+                if (controls) controls.classList.remove('hidden');
+                if (readView) readView.classList.remove('hidden');
+                const current = getRecipe(selectedRecipeId);
+                document.getElementById('recipe-title').innerText = current.title;
+                document.getElementById('recipe-desc').innerText = current.desc;
+                document.getElementById('recipe-type').innerText = current.type;
+                document.getElementById('recipe-freezer-tips').innerText = current.freezerTips;
+                if (current.scalingTip) { tipEl.innerText = current.scalingTip; tipEl.classList.remove('hidden'); }
+                else { tipEl.classList.add('hidden'); }
+                const multiplierInput = document.getElementById('multiplier-input');
+                if (multiplierInput && document.activeElement !== multiplierInput) multiplierInput.value = prepDays;
+                scaleRecipe(prepDays); // shared with Dashboard/Planner prep days
+            }
             updateEditToolbar();
         }
 
+        // READ-MODE rendering: scaled, read-only amounts (editing happens in Edit mode).
         function scaleRecipe(mult) {
             const id = selectedRecipeId;
             snapshotPristine(id);
             const current = getRecipe(id);
-
-            // Scale macros — in 'whole' mode, correct them for rounding discrete ingredients.
             setScalerMacros(current, mult);
-
-            // Inline amount editing is available unless we're viewing the Pasta carb swap,
-            // which rewrites the ingredient list (so raw indices wouldn't line up).
-            const editable = !(carbMode === 'pasta' && getCarbSwap(goalScaled(recipes[id])));
-            const gf = goalFactor();
 
             const ingredientsContainer = document.getElementById('scaled-ingredients');
             ingredientsContainer.innerHTML = '';
-
-            // Editable: iterate the RAW recipe (index-aligned) and apply goal scaling for display.
-            // Read-only (pasta view): iterate the already-transformed `current` list.
-            const rows = editable
-                ? recipes[id].ingredients.map((ing, idx) => ({ ing, idx, base: ing.amount, gf }))
-                : current.ingredients.map((ing, idx) => ({ ing, idx, base: ing.amount, gf: 1 }));
-
-            rows.forEach(row => {
-                const ing = row.ing;
-                const scaledAmount = row.base * row.gf * mult;
+            current.ingredients.forEach(ing => {
+                const scaledAmount = ing.amount * mult;
                 const rounding = (amountMode === 'whole' && isDiscreteUnit(ing.unit));
                 const shownAmount = rounding ? Math.round(scaledAmount) : scaledAmount;
-                const displayScaled = (shownAmount % 1 === 0) ? Math.round(shownAmount) : shownAmount.toFixed(1);
+                const displayAmount = (shownAmount % 1 === 0) ? Math.round(shownAmount) : shownAmount.toFixed(1);
                 const roundedNote = (rounding && shownAmount !== scaledAmount)
                     ? `<span class="block text-[10px] text-amberAccent font-semibold mt-0.5">&#9888; whole units &mdash; rounded from ${scaledAmount.toFixed(1)} ${ing.unit}</span>`
                     : '';
@@ -548,52 +678,22 @@ function updateTabs() {
                 const ingGrams = (ing.unit === 'g' || ing.unit === 'grams') ? shownAmount : ingredientGrams(ingKey, shownAmount, ing.unit);
                 const pkg = (ingGrams != null) ? getPackageCount(ingKey, ingGrams) : null;
                 const pkgHintHtml = pkg ? packageHintHtml(pkg) : '';
-                const untracked = editable && !ingTracked(ing);
-                const nameHtml = `<span class="text-stoneNeutral-800 font-medium hover:text-emeraldAccent cursor-pointer dive-name">${ing.name}</span>`
-                    + (untracked ? '<span class="block text-[10px] text-amberAccent">macros not tracked — amount only</span>' : '')
-                    + pkgHintHtml + roundedNote;
 
                 const li = document.createElement('li');
-                li.className = 'flex justify-between items-start text-sm border-b border-stoneNeutral-100 pb-2 px-2 py-1 rounded';
-
-                if (editable) {
-                    li.innerHTML = `
-                        <span class="pr-2 flex-1">${nameHtml}</span>
-                        <span class="flex flex-col items-end gap-0.5 whitespace-nowrap">
-                            <span class="flex items-center gap-1">
-                                <input type="number" min="0" step="0.1" value="${row.base}" class="ing-base-input w-16 bg-stoneNeutral-50 border border-stoneNeutral-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-stoneNeutral-900 focus:outline-none focus:ring-2 focus:ring-emeraldAccent">
-                                <span class="text-[11px] text-stoneNeutral-700">${ing.unit} base</span>
-                            </span>
-                            <span class="ing-scaled text-[10px] text-stoneNeutral-700 font-mono">= ${displayScaled} ${ing.unit} @ ${mult}&times;</span>
-                        </span>`;
-                    const input = li.querySelector('.ing-base-input');
-                    input.addEventListener('input', e => {
-                        let v = parseFloat(e.target.value);
-                        if (isNaN(v) || v < 0) v = 0;
-                        recipes[id].ingredients[row.idx].amount = v;
-                        recomputeBaseMacros(id);
-                        setScalerMacros(getRecipe(id), mult);  // refresh totals in place (keeps focus)
-                        const newScaled = v * goalFactor() * mult;
-                        const r2 = (amountMode === 'whole' && isDiscreteUnit(ing.unit)) ? Math.round(newScaled) : newScaled;
-                        li.querySelector('.ing-scaled').innerHTML = `= ${(r2 % 1 === 0) ? Math.round(r2) : r2.toFixed(1)} ${ing.unit} @ ${mult}&times;`;
-                        updateCarbPanel(mult);
-                        updateEditToolbar();
-                    });
-                    li.querySelector('.dive-name').addEventListener('click', () => openDeepDive({ name: ing.name, amount: row.base * goalFactor(), unit: ing.unit }, mult));
-                } else {
-                    li.classList.add('cursor-pointer', 'hover:bg-stoneNeutral-50', 'transition-colors');
-                    li.innerHTML = `
-                        <span class="pr-2">${nameHtml}</span>
-                        <span class="font-mono font-bold text-stoneNeutral-900 bg-stoneNeutral-100 px-2.5 py-1 rounded whitespace-nowrap">${displayScaled} ${ing.unit}</span>`;
-                    li.addEventListener('click', () => openDeepDive(ing, mult));
-                }
+                li.className = 'flex justify-between items-start text-sm border-b border-stoneNeutral-100 pb-2 cursor-pointer hover:bg-stoneNeutral-50 px-2 py-1 rounded transition-colors';
+                li.innerHTML = `
+                    <span class="pr-2"><span class="text-stoneNeutral-800 font-medium hover:text-emeraldAccent">${ing.name}</span>${pkgHintHtml}${roundedNote}</span>
+                    <span class="font-mono font-bold text-stoneNeutral-900 bg-stoneNeutral-100 px-2.5 py-1 rounded whitespace-nowrap">${displayAmount} ${ing.unit}</span>
+                `;
+                li.addEventListener('click', () => openDeepDive(ing, mult));
                 ingredientsContainer.appendChild(li);
             });
 
-            // Update steps
+            // Update steps (skip any blank lines introduced while editing)
             const stepsContainer = document.getElementById('recipe-steps');
             stepsContainer.innerHTML = '';
             current.steps.forEach(step => {
+                if (!String(step).trim()) return;
                 const li = document.createElement('li');
                 li.className = 'mb-2';
                 li.innerText = step;
@@ -603,7 +703,6 @@ function updateTabs() {
             // Carb toggle + "how macros change" box (scaler only).
             updateCarbPanel(mult);
             syncAmountToggleUI();
-            updateEditToolbar();
         }
 
         // Show/refresh the scaler's Rice/Pasta toggle and the macro-change box for the
@@ -728,11 +827,11 @@ function updateTabs() {
         // TAB 3: SUNDAY PLANNER
         function renderSundayPlanner() {
             const daysInput = document.getElementById('planner-days');
-            const daysNum = parseInt(daysInput.value) || 7;
+            if (daysInput && document.activeElement !== daysInput) daysInput.value = prepDays;
+            const daysNum = prepDays;
 
-            // Keep daily dashboard days matched
-            document.getElementById('dashboard-days').value = daysNum;
-            document.getElementById('grocery-multiplier-badge').innerText = `x${daysNum} Days Prep`;
+            const badge = document.getElementById('grocery-multiplier-badge');
+            if (badge) badge.innerText = `x${daysNum} Days Prep`;
 
             const activeRecipes = [
                 baseRecipe(customSelections.breakfast),
@@ -802,12 +901,7 @@ function updateTabs() {
                 
                 div.querySelector('#click-groc-detail').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    selectedRecipeId = activeRecipes[0].id;
-                    activeTab = 'recipes';
-                    updateTabs();
-                    setTimeout(() => {
-                        openDeepDive(item.rawIngredient, daysNum);
-                    }, 50);
+                    goToRecipe(activeRecipes[0] && activeRecipes[0].id);
                 });
 
                 div.querySelector('input').addEventListener('change', (e) => {
@@ -900,19 +994,8 @@ function updateTabs() {
                 'carrot stick bags': 'vegStirfry'
             };
 
-            const targetRecipeId = recipeKeyMap[ingName] || 'bagel';
-            selectedRecipeId = targetRecipeId;
-            activeTab = 'recipes';
-            updateTabs();
-
-            document.getElementById('multiplier-input').value = daysNum;
-            scaleRecipe(daysNum);
-
-            setTimeout(() => {
-                const dummyIngObj = { name: ingName, amount: ingredientDB[ingName]?.conversions?.g || 100, unit: 'g' };
-                openDeepDive(dummyIngObj, daysNum);
-                document.getElementById('ingredient-deep-dive').scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+            // On the standalone Planner page, jump to the recipe on the Recipes page.
+            goToRecipe(recipeKeyMap[ingName] || 'bagel');
         }
 
         // TAB 4: WEEKLY MEAL TIMING CALENDAR
@@ -1030,79 +1113,66 @@ function updateTabs() {
             }
         })();
 
-        // Dropdown Mix & Match Event Listeners & State Binding
-        document.getElementById('breakfast-mix').addEventListener('change', (e) => {
-            customSelections.breakfast = e.target.value;
-            document.getElementById('week-selector').value = 'custom';
-            renderWeeklyDashboard();
-        });
-        document.getElementById('lunch-mix').addEventListener('change', (e) => {
-            customSelections.lunch = e.target.value;
-            document.getElementById('week-selector').value = 'custom';
-            renderWeeklyDashboard();
-        });
-        document.getElementById('dinner-mix').addEventListener('change', (e) => {
-            customSelections.dinner = e.target.value;
-            document.getElementById('week-selector').value = 'custom';
-            renderWeeklyDashboard();
-        });
-        document.getElementById('dessert-mix').addEventListener('change', (e) => {
-            customSelections.dessert = e.target.value;
-            document.getElementById('week-selector').value = 'custom';
-            renderWeeklyDashboard();
-        });
+        // ---- Listeners. Each is guarded so a page that lacks the element is unaffected,
+        // and persisted state is written through (localStorage + Supabase) on every change.
 
-        // Load Preset Week Templates
-        document.getElementById('week-selector').addEventListener('change', (e) => {
-            const val = e.target.value;
-            if (val !== 'custom') {
-                const preset = weeksPlan[val];
-                customSelections.breakfast = preset.breakfast;
-                customSelections.lunch = preset.lunch;
-                customSelections.dinner = preset.dinner;
-                customSelections.dessert = preset.dessert;
-
-                // Sync dropdown UI
-                document.getElementById('breakfast-mix').value = preset.breakfast;
-                document.getElementById('lunch-mix').value = preset.lunch;
-                document.getElementById('dinner-mix').value = preset.dinner;
-                document.getElementById('dessert-mix').value = preset.dessert;
-
+        // Mix & Match meal selectors (dashboard page)
+        function bindMealSelect(id, role) {
+            onEl(id, 'change', (e) => {
+                customSelections[role] = e.target.value;
+                const ws = document.getElementById('week-selector'); if (ws) ws.value = 'custom';
+                persistState();
                 renderWeeklyDashboard();
-            }
-        });
+            });
+        }
+        bindMealSelect('breakfast-mix', 'breakfast');
+        bindMealSelect('lunch-mix', 'lunch');
+        bindMealSelect('dinner-mix', 'dinner');
+        bindMealSelect('dessert-mix', 'dessert');
 
-        document.getElementById('dashboard-days').addEventListener('input', (e) => {
-            let val = parseInt(e.target.value) || 7;
-            document.getElementById('planner-days').value = val;
+        // Preset week templates (dashboard page)
+        onEl('week-selector', 'change', (e) => {
+            const val = e.target.value;
+            if (val === 'custom') return;
+            const preset = weeksPlan[val];
+            if (!preset) return;
+            activeWeek = String(val);
+            ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(r => {
+                customSelections[r] = preset[r];
+                const s = document.getElementById(r + '-mix'); if (s) s.value = preset[r];
+            });
+            persistState();
             renderWeeklyDashboard();
         });
 
-        // Calorie goal — rescales the whole plan and re-renders whichever tab is active.
-        document.getElementById('calorie-goal').addEventListener('input', (e) => {
+        onEl('dashboard-days', 'input', (e) => {
+            prepDays = parseInt(e.target.value) || 7;
+            persistState();
+            renderWeeklyDashboard();
+        });
+
+        // Calorie goal lives in the shared header (every page): rescale + re-render this page.
+        onEl('calorie-goal', 'input', (e) => {
             calorieGoal = parseInt(e.target.value) || BASE_CALORIE_GOAL;
+            persistState();
             updateTabs();
         });
 
-        // Global Listeners & Navigation
+        // Legacy SPA tab buttons (none on the standalone pages — nav is links now).
         document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                activeTab = btn.getAttribute('data-tab');
-                updateTabs();
-            });
+            btn.addEventListener('click', () => { activeTab = btn.getAttribute('data-tab'); updateTabs(); });
         });
 
-        // Carb base toggle (Rice <-> Pasta) — RECIPE SCALER ONLY. Re-renders just the
-        // scaled recipe; the dashboard and Sunday planner are intentionally unaffected.
+        // Carb base toggle (Rice <-> Pasta) — recipes page only.
         document.querySelectorAll('.carb-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 carbMode = btn.getAttribute('data-carb');
                 syncCarbToggleUI();
-                scaleRecipe(parseFloat(document.getElementById('multiplier-input').value) || 1.0);
+                persistState();
+                const mi = document.getElementById('multiplier-input');
+                scaleRecipe(mi ? (parseFloat(mi.value) || 1.0) : 1.0);
             });
         });
-
-        // Reflect the active carb mode on the scaler's Rice/Pasta buttons.
         function syncCarbToggleUI() {
             document.querySelectorAll('.carb-btn').forEach(b => {
                 const on = b.getAttribute('data-carb') === carbMode;
@@ -1113,17 +1183,15 @@ function updateTabs() {
             });
         }
 
-        // Whole-units toggle (Exact <-> Whole) — GLOBAL: re-renders whichever tab is active
-        // so the dashboard weekly macros, the scaler, and the shopping list all reflect it.
+        // Whole-units toggle (Exact <-> Whole) — shared header; re-renders this page.
         document.querySelectorAll('.amount-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 amountMode = btn.getAttribute('data-amount');
                 syncAmountToggleUI();
+                persistState();
                 updateTabs();
             });
         });
-
-        // Reflect the active amount mode on the scaler's Exact/Whole Units buttons.
         function syncAmountToggleUI() {
             document.querySelectorAll('.amount-btn').forEach(b => {
                 const on = b.getAttribute('data-amount') === amountMode;
@@ -1134,31 +1202,36 @@ function updateTabs() {
             });
         }
 
-        const multiplierInput = document.getElementById('multiplier-input');
-        multiplierInput.addEventListener('input', (e) => {
-            let val = parseFloat(e.target.value) || 1.0;
-            scaleRecipe(val);
+        // Recipe scaler multiplier + presets — recipes page only.
+        // The scaler "Multiplier Servings" is the SAME shared value as Prep Days on the
+        // Dashboard/Planner (prepDays) — changing one updates all and persists.
+        onEl('multiplier-input', 'input', (e) => {
+            prepDays = parseFloat(e.target.value) || 1.0;
+            persistState();
+            scaleRecipe(prepDays);
         });
-
         document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const mult = parseFloat(btn.getAttribute('data-scale'));
-                multiplierInput.value = mult;
-                scaleRecipe(mult);
+                prepDays = parseFloat(btn.getAttribute('data-scale')) || 1.0;
+                const mi = document.getElementById('multiplier-input'); if (mi) mi.value = prepDays;
+                persistState();
+                scaleRecipe(prepDays);
             });
         });
 
-        document.getElementById('planner-days').addEventListener('input', (e) => {
-            let val = parseInt(e.target.value) || 7;
-            document.getElementById('dashboard-days').value = val;
+        onEl('planner-days', 'input', (e) => {
+            prepDays = parseInt(e.target.value) || 7;
+            persistState();
             renderSundayPlanner();
         });
 
-        // Recipe edit controls (scaler): Save / Revert / Notes.
+        // Recipe edit controls (scaler): Save / Revert / Notes (already guarded).
         (function () {
+            const editBtn = document.getElementById('recipe-edit-btn');
             const saveBtn = document.getElementById('recipe-save-btn');
             const revertBtn = document.getElementById('recipe-revert-btn');
             const notes = document.getElementById('recipe-notes');
+            if (editBtn) editBtn.addEventListener('click', toggleRecipeEditMode);
             if (saveBtn) saveBtn.addEventListener('click', saveRecipeEdits);
             if (revertBtn) revertBtn.addEventListener('click', revertRecipeEdits);
             if (notes) notes.addEventListener('input', (e) => {
@@ -1167,15 +1240,16 @@ function updateTabs() {
             });
         })();
 
-        // Init
-        // Snapshot originals + apply any saved recipe edits BEFORE the first render.
-        initRecipeEdits();
-
-        // Pre-fill dropdown elements on boot to week 1 template
-        const initialWeekPreset = weeksPlan['1'];
-        document.getElementById('breakfast-mix').value = initialWeekPreset.breakfast;
-        document.getElementById('lunch-mix').value = initialWeekPreset.lunch;
-        document.getElementById('dinner-mix').value = initialWeekPreset.dinner;
-        document.getElementById('dessert-mix').value = initialWeekPreset.dessert;
-
-        updateTabs();
+        // Init — wait for the Supabase data AND the persisted state, then render THIS page.
+        Promise.all([window.DATA_READY || Promise.resolve(), window.STATE_READY || Promise.resolve()]).then(() => {
+            sanitizeSelections();          // drop selections pointing at missing recipes
+            initRecipeEdits();             // snapshot originals + apply saved recipe edits
+            syncAmountToggleUI();          // reflect persisted units mode in the header toggle
+            // Dashboard: reflect persisted meal selections in the selects (if present here).
+            if (document.getElementById('breakfast-mix')) {
+                ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(r => {
+                    const s = document.getElementById(r + '-mix'); if (s && customSelections[r]) s.value = customSelections[r];
+                });
+            }
+            updateTabs();                  // render whichever single page this is
+        }).catch((e) => console.error('Page init failed:', e));

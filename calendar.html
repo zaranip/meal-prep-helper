@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Meal Prep Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        stoneNeutral: {
+                            50: '#fafaf9',
+                            100: '#f5f5f4',
+                            200: '#e7e5e4',
+                            300: '#d6d3d1',
+                            700: '#44403c',
+                            800: '#292524',
+                            900: '#1c1917',
+                        },
+                        emeraldAccent: '#0f766e',
+                        amberAccent: '#d97706',
+                        skyAccent: '#0369a1'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="antialiased" data-page="calendar">
+    <div id="app-header"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<section id="calendar" class="tab-content active">
+            <div class="mb-6 max-w-4xl">
+                <h2 class="text-xl font-bold text-stoneNeutral-900 mb-2">Daily Meal Timing</h2>
+                <p class="text-stoneNeutral-700 leading-relaxed">
+                    Your meals placed at <b>optimal eating times</b> for the day. Set your wake, gym (2-hour session), and sleep
+                    times — or check <b>No gym today</b> — and the schedule recalculates: breakfast shortly after waking, a light
+                    pre-gym snack, a protein-forward dinner after lifting, and dessert with a buffer before bed.
+                </p>
+            </div>
+            <div id="schedule-container" class="space-y-4">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/data-reconstruct.js"></script>
+    <script src="js/data-layer.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/packaging.js"></script>
+    <script src="js/nav.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
