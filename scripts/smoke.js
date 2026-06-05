@@ -60,7 +60,7 @@ const SCRIPTS = ['js/config.js', 'js/data-reconstruct.js', 'js/data-layer.js', '
 
 const PAGES = [
     { file: 'index.html', label: 'dashboard', assert: (d) => /1800/.test(d.getElementById('sum-daily-cal').textContent) && d.getElementById('meals-list').children.length === 4 },
-    { file: 'recipes.html', label: 'recipes', assert: (d) => d.getElementById('recipe-title').textContent !== '--' && d.getElementById('scaled-ingredients').children.length > 0 && !!d.getElementById('recipe-notes-save') && d.getElementById('recipe-notes-save').disabled === true },
+    { file: 'recipes.html', label: 'recipes', assert: (d) => d.getElementById('recipe-title').textContent !== '--' && d.getElementById('scaled-ingredients').children.length > 0 && !!d.getElementById('recipe-meta-save') && d.getElementById('recipe-meta-save').disabled === true && !!d.getElementById('recipe-freezer-tips') && d.getElementById('recipe-freezer-tips').value.length > 0 },
     { file: 'planner.html', label: 'planner', assert: (d) => d.getElementById('grocery-items-container').children.length > 0 && d.getElementById('timeline-container').children.length > 0 },
     { file: 'calendar.html', label: 'calendar', assert: (d) => d.getElementById('schedule-container').children.length > 0 },
     { file: 'builder.html', label: 'builder', assert: (d) => d.getElementById('builder-auth').innerHTML.length > 0, extra: ['js/recipe-parse.js', 'js/builder.js'] }
@@ -268,6 +268,30 @@ async function testRecipeLibrary() {
     return ok;
 }
 
+// Freezer tips + Notes (recipes page): the freezer box is pre-filled and editable; editing it
+// enables the shared Save, which persists to the localStorage edit store for a stock recipe.
+async function testFreezerNotes() {
+    const b = await bootDOM('recipes.html');
+    const w = b.w, d = w.document;
+    const save = d.getElementById('recipe-meta-save');
+    const fz = d.getElementById('recipe-freezer-tips');
+    const startOk = save.disabled === true && fz.value.length > 0; // pre-filled, nothing to save yet
+    fz.value = fz.value + ' (test edit)';
+    fz.dispatchEvent(new w.Event('input', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 10));
+    const enabledAfterEdit = save.disabled === false;
+    save.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 10));
+    const status = d.getElementById('recipe-meta-status').textContent;
+    const savedOk = /Saved/.test(status) && save.disabled === true;
+    const store = JSON.parse(w.localStorage.getItem('mealPrep.recipeEdits.v2') || '{}');
+    const persisted = Object.keys(store).some((k) => /test edit/.test(store[k].freezerTips || ''));
+    b.dom.window.close();
+    const ok = startOk && enabledAfterEdit && savedOk && persisted;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'freezer-notes (prefilled=' + startOk + ', edit-enables=' + enabledAfterEdit + ', saved=' + savedOk + ', persisted=' + persisted + ')');
+    return ok;
+}
+
 (async function () {
     let failed = false;
     for (const page of PAGES) {
@@ -283,6 +307,7 @@ async function testRecipeLibrary() {
     if (!(await testWeekEditor())) failed = true;
     if (!(await testOverlap())) failed = true;
     if (!(await testRecipeLibrary())) failed = true;
-    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap + recipe-library (mocked backend).');
+    if (!(await testFreezerNotes())) failed = true;
+    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap + recipe-library + freezer/notes (mocked backend).');
     process.exitCode = failed ? 1 : 0;
 })();

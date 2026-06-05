@@ -408,6 +408,7 @@ function updateMealDropdownLabels(days) {
         const pristineRecipes = {};   // id -> deep copy of the ORIGINAL recipe (pre-override)
         let recipeEditStore = {};     // persisted (stock only): id -> full editable state
         const draftNotes = {};        // in-memory notes per recipe id (until Save)
+        const draftFreezer = {};      // in-memory freezer tips per recipe id (until Save)
         let recipeEditMode = false;   // is the inline editor open?
 
         function loadRecipeEditStore() { try { return JSON.parse(localStorage.getItem(RECIPE_EDIT_KEY)) || {}; } catch (e) { return {}; } }
@@ -476,8 +477,18 @@ function updateMealDropdownLabels(days) {
         }
         function recipeNotes(id) { return (draftNotes[id] != null) ? draftNotes[id] : savedNotes(id); }
         function notesDirty(id) { return draftNotes[id] != null && draftNotes[id] !== savedNotes(id); }
+        // Freezer tips mirror notes (same Save), but have an ORIGINAL value from the recipe data,
+        // so "saved" falls back to the pristine recipe text when there's no override.
+        function savedFreezer(id) {
+            if (isCustomRecipe(id)) return (recipes[id] && recipes[id].freezerTips) || '';
+            if (recipeEditStore[id] && recipeEditStore[id].freezerTips != null) return recipeEditStore[id].freezerTips;
+            return (pristineRecipes[id] ? pristineRecipes[id].freezerTips : (recipes[id] && recipes[id].freezerTips)) || '';
+        }
+        function recipeFreezer(id) { return (draftFreezer[id] != null) ? draftFreezer[id] : savedFreezer(id); }
+        function freezerDirty(id) { return draftFreezer[id] != null && draftFreezer[id] !== savedFreezer(id); }
+        function metaDirty(id) { return notesDirty(id) || freezerDirty(id); }
         function structuralDirty(id) { return editableSnapshot(recipes[id]) !== savedSnapshot(id); }
-        function recipeIsDirty(id) { return structuralDirty(id) || notesDirty(id); }
+        function recipeIsDirty(id) { return structuralDirty(id) || metaDirty(id); }
         // Boot: snapshot originals FIRST, then apply any saved stock edits on top.
         function initRecipeEdits() {
             recipeEditStore = loadRecipeEditStore();
@@ -487,6 +498,7 @@ function updateMealDropdownLabels(days) {
                 const ed = recipeEditStore[id];
                 if (ed.title != null) recipes[id].title = ed.title;
                 if (ed.desc != null) recipes[id].desc = ed.desc;
+                if (ed.freezerTips != null) recipes[id].freezerTips = ed.freezerTips;
                 if (Array.isArray(ed.steps)) recipes[id].steps = ed.steps.slice();
                 if (Array.isArray(ed.ingredients)) recipes[id].ingredients = ed.ingredients.map(function (i) { return Object.assign({}, i); });
                 applyComputedMacros(id);
@@ -501,9 +513,11 @@ function updateMealDropdownLabels(days) {
                 ingredients: recipes[id].ingredients.map(function (i) { return { name: i.name, amount: i.amount, unit: i.unit }; }),
                 baseMacros: Object.assign({}, recipes[id].baseMacros),
                 notes: recipeNotes(id),
+                freezerTips: recipeFreezer(id),    // preserve the freezer/notes overrides on a structural save
                 snapshot: editableSnapshot(recipes[id])
             };
             delete draftNotes[id];
+            delete draftFreezer[id];
             persistRecipeEditStore();
             setEditStatus('Saved.', true);
             updateEditToolbar();
@@ -511,7 +525,7 @@ function updateMealDropdownLabels(days) {
         function revertRecipeEdits() {
             const id = selectedRecipeId;
             if (pristineRecipes[id]) recipes[id] = deepCopyRecipe(pristineRecipes[id]);
-            delete recipeEditStore[id]; delete draftNotes[id];
+            delete recipeEditStore[id]; delete draftNotes[id]; delete draftFreezer[id];
             persistRecipeEditStore();
             recipeEditMode = false;
             renderRecipeScaler();
@@ -519,28 +533,28 @@ function updateMealDropdownLabels(days) {
         }
         function toggleRecipeEditMode() { recipeEditMode = !recipeEditMode; renderRecipeScaler(); }
 
-        // ----- Notes: its own Save, independent of the structural edit Save -------
-        // Notes save for BOTH stock (localStorage) and custom (Supabase) recipes — this is the
-        // box shared with the Add Recipe tab. Structural edits to custom recipes remain
-        // builder-only (live preview); only the NOTES are persisted here.
-        function setNotesStatus(msg, ok) {
-            const el = document.getElementById('recipe-notes-status');
+        // ----- Freezer tips + Notes: one Save, independent of the structural edit Save --------
+        // Both fields save for BOTH stock (localStorage) and custom (Supabase) recipes — these are
+        // the two boxes shared with the Add Recipe tab. Structural edits to custom recipes remain
+        // builder-only (live preview); only the freezer tips + notes are persisted here.
+        function setMetaStatus(msg, ok) {
+            const el = document.getElementById('recipe-meta-status');
             if (!el) return;
             el.textContent = msg || '';
             el.className = 'text-[11px] font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent');
         }
-        function updateNotesToolbar() {
-            const btn = document.getElementById('recipe-notes-save');
+        function updateMetaToolbar() {
+            const btn = document.getElementById('recipe-meta-save');
             if (!btn) return;
-            const dis = !notesDirty(selectedRecipeId);
+            const dis = !metaDirty(selectedRecipeId);
             btn.disabled = dis;
             btn.classList.toggle('opacity-40', dis);
             btn.classList.toggle('cursor-not-allowed', dis);
         }
-        // Inline sign-in shown only if she tries to save a custom note while signed out. The
-        // session is shared across pages (window.supabaseClient), so this is usually skipped.
-        function showNotesAuth() {
-            const el = document.getElementById('recipe-notes-auth');
+        // Inline sign-in shown only if she tries to save a custom recipe's freezer/notes while
+        // signed out. The session is shared across pages (window.supabaseClient), so usually skipped.
+        function showMetaAuth() {
+            const el = document.getElementById('recipe-meta-auth');
             const sb = window.supabaseClient;
             if (!el || !sb || !sb.auth) return;
             el.classList.remove('hidden');
@@ -553,35 +567,41 @@ function updateMealDropdownLabels(days) {
                 const r = await sb.auth.signInWithPassword({ email: document.getElementById('rn-email').value.trim(), password: document.getElementById('rn-pass').value });
                 if (r.error) { document.getElementById('rn-msg').textContent = r.error.message; return; }
                 el.classList.add('hidden');
-                saveNotes(); // retry now that the (shared) session is established
+                saveMeta(); // retry now that the (shared) session is established
             });
         }
-        async function saveNotes() {
+        async function saveMeta() {
             const id = selectedRecipeId;
-            const ta = document.getElementById('recipe-notes');
-            const val = ta ? ta.value : recipeNotes(id);
+            const notesEl = document.getElementById('recipe-notes');
+            const freezerEl = document.getElementById('recipe-freezer-tips');
+            const notesVal = notesEl ? notesEl.value : recipeNotes(id);
+            const freezerVal = freezerEl ? freezerEl.value : recipeFreezer(id);
             if (isCustomRecipe(id)) {
                 const sb = window.supabaseClient;
                 const sbId = recipes[id] && recipes[id].sbId;
-                if (!sb || !sbId) { setNotesStatus('Backend unavailable — can’t save notes.', false); return; }
+                if (!sb || !sbId) { setMetaStatus('Backend unavailable — can’t save.', false); return; }
                 let session = null;
                 try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
-                if (!session) { setNotesStatus('Sign in to save notes.', false); showNotesAuth(); return; }
-                setNotesStatus('Saving…', true);
-                const res = await sb.from('recipes').update({ notes: val || null }).eq('id', sbId);
-                if (res.error) { setNotesStatus(res.error.message, false); return; }
-                recipes[id].notes = val;          // reflect immediately (no reload needed)
+                if (!session) { setMetaStatus('Sign in to save.', false); showMetaAuth(); return; }
+                setMetaStatus('Saving…', true);
+                const res = await sb.from('recipes').update({ notes: notesVal || null, freezer_tips: freezerVal || null }).eq('id', sbId);
+                if (res.error) { setMetaStatus(res.error.message, false); return; }
+                recipes[id].notes = notesVal;            // reflect immediately (no reload needed)
+                recipes[id].freezerTips = freezerVal;
             } else {
-                // Stock: persist ONLY notes (+ a baseline snapshot for dirty/revert), never the
-                // pending structural edits — those go through the toolbar Save.
+                // Stock: persist ONLY freezer tips + notes (+ a baseline snapshot for dirty/revert),
+                // never the pending structural edits — those go through the toolbar Save.
                 const store = recipeEditStore[id] || {};
-                store.notes = val;
+                store.notes = notesVal;
+                store.freezerTips = freezerVal;
                 if (!store.snapshot) store.snapshot = pristineRecipes[id] ? editableSnapshot(pristineRecipes[id]) : editableSnapshot(recipes[id]);
                 recipeEditStore[id] = store;
+                recipes[id].freezerTips = freezerVal;    // apply the override live
                 persistRecipeEditStore();
             }
             delete draftNotes[id];
-            setNotesStatus('Notes saved.', true);
+            delete draftFreezer[id];
+            setMetaStatus('Saved.', true);
             updateEditToolbar();
         }
         function setEditStatus(msg, ok) {
@@ -600,10 +620,10 @@ function updateMealDropdownLabels(days) {
             const revertBtn = document.getElementById('recipe-revert-btn');
             if (editBtn) editBtn.innerHTML = recipeEditMode ? 'Done editing' : '&#9999;&#65039; Edit recipe';
             if (saveBtn) { const dis = custom || !sdirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Custom recipe structure is edited in the Add Recipe tab' : ''; }
-            if (revertBtn) { const can = sdirty || notesDirty(id) || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
-            if (sdirty) setEditStatus(custom ? 'Live preview — recipe structure saves in the Add Recipe tab (notes save below)' : 'Unsaved changes', false);
-            else setEditStatus(custom ? 'Custom recipe — structure is edited in the Add Recipe tab; notes save below' : (saved ? 'Saved edits applied' : ''), true);
-            updateNotesToolbar();
+            if (revertBtn) { const can = sdirty || metaDirty(id) || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
+            if (sdirty) setEditStatus(custom ? 'Live preview — recipe structure saves in the Add Recipe tab (freezer tips & notes save below)' : 'Unsaved changes', false);
+            else setEditStatus(custom ? 'Custom recipe — structure is edited in the Add Recipe tab; freezer tips & notes save below' : (saved ? 'Saved edits applied' : ''), true);
+            updateMetaToolbar();
         }
         function setScalerMacros(current, mult) {
             const rdelta = (amountMode === 'whole' && current.ingredients) ? roundingMacroDelta(current, mult) : { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
@@ -742,9 +762,11 @@ function updateMealDropdownLabels(days) {
             snapshotPristine(selectedRecipeId);
             const notesEl = document.getElementById('recipe-notes');
             if (notesEl) notesEl.value = recipeNotes(selectedRecipeId);
-            setNotesStatus('');                                                   // fresh recipe -> clear status
-            const notesAuth = document.getElementById('recipe-notes-auth');
-            if (notesAuth) { notesAuth.classList.add('hidden'); notesAuth.innerHTML = ''; }
+            const freezerEl = document.getElementById('recipe-freezer-tips');
+            if (freezerEl) freezerEl.value = recipeFreezer(selectedRecipeId);     // editable, both modes
+            setMetaStatus('');                                                    // fresh recipe -> clear status
+            const metaAuth = document.getElementById('recipe-meta-auth');
+            if (metaAuth) { metaAuth.classList.add('hidden'); metaAuth.innerHTML = ''; }
 
             const editor = document.getElementById('recipe-editor');
             const readView = document.getElementById('scaler-readview');
@@ -773,7 +795,6 @@ function updateMealDropdownLabels(days) {
                 document.getElementById('recipe-title').innerText = current.title;
                 document.getElementById('recipe-desc').innerText = current.desc;
                 document.getElementById('recipe-type').innerText = current.type;
-                document.getElementById('recipe-freezer-tips').innerText = current.freezerTips;
                 if (current.scalingTip) { tipEl.innerText = current.scalingTip; tipEl.classList.remove('hidden'); }
                 else { tipEl.classList.add('hidden'); }
                 const multiplierInput = document.getElementById('multiplier-input');
@@ -1352,22 +1373,28 @@ function updateMealDropdownLabels(days) {
             renderSundayPlanner();
         });
 
-        // Recipe edit controls (scaler): Save / Revert / Notes (already guarded).
+        // Recipe edit controls (scaler): Save / Revert / Freezer tips + Notes (already guarded).
         (function () {
             const editBtn = document.getElementById('recipe-edit-btn');
             const saveBtn = document.getElementById('recipe-save-btn');
             const revertBtn = document.getElementById('recipe-revert-btn');
             const notes = document.getElementById('recipe-notes');
+            const freezer = document.getElementById('recipe-freezer-tips');
             if (editBtn) editBtn.addEventListener('click', toggleRecipeEditMode);
             if (saveBtn) saveBtn.addEventListener('click', saveRecipeEdits);
             if (revertBtn) revertBtn.addEventListener('click', revertRecipeEdits);
             if (notes) notes.addEventListener('input', (e) => {
                 draftNotes[selectedRecipeId] = e.target.value;
-                setNotesStatus('');           // clear a stale "Notes saved." once she edits again
+                setMetaStatus('');            // clear a stale "Saved." once she edits again
                 updateEditToolbar();
             });
-            const notesSave = document.getElementById('recipe-notes-save');
-            if (notesSave) notesSave.addEventListener('click', saveNotes);
+            if (freezer) freezer.addEventListener('input', (e) => {
+                draftFreezer[selectedRecipeId] = e.target.value;
+                setMetaStatus('');
+                updateEditToolbar();
+            });
+            const metaSave = document.getElementById('recipe-meta-save');
+            if (metaSave) metaSave.addEventListener('click', saveMeta);
             // Recipe Library category filter (All / Breakfast / Meals / Dessert).
             document.querySelectorAll('.recipe-lib-btn').forEach(function (b) {
                 b.addEventListener('click', function () {
