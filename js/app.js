@@ -683,11 +683,41 @@ function updateMealDropdownLabels(days) {
         }
 
         // TAB 2: RECIPE SCALER
+        // Recipe Library category: breakfast -> meals -> dessert (snacks group with dessert).
+        let recipeLibFilter = 'all';
+        function recipeCat(key) {
+            const t = ((recipes[key] || {}).type || '').toLowerCase();
+            if (t === 'breakfast') return 'breakfast';
+            if (t === 'meal') return 'meal';
+            if (t === 'dessert' || t === 'snack') return 'dessert';
+            return 'other';
+        }
+        const LIB_CAT_ORDER = { breakfast: 0, meal: 1, dessert: 2, other: 3 };
+        function updateLibFilterUI() {
+            document.querySelectorAll('.recipe-lib-btn').forEach(function (b) {
+                const active = b.getAttribute('data-cat') === recipeLibFilter;
+                b.classList.toggle('bg-emeraldAccent', active);
+                b.classList.toggle('text-white', active);
+                b.classList.toggle('border-emeraldAccent', active);
+                b.classList.toggle('bg-stoneNeutral-50', !active);
+                b.classList.toggle('text-stoneNeutral-700', !active);
+                b.classList.toggle('border-stoneNeutral-200', !active);
+            });
+        }
         function renderRecipeScaler() {
             const dir = document.getElementById('recipe-directory');
             dir.innerHTML = '';
+            updateLibFilterUI();
 
-            Object.keys(recipes).forEach(key => {
+            // Filter by the chosen category, then order breakfast -> meals -> dessert. Array.sort
+            // is stable, so recipes keep their existing within-category order (stock position).
+            const keys = Object.keys(recipes)
+                .filter(function (k) { return recipeLibFilter === 'all' || recipeCat(k) === recipeLibFilter; })
+                .sort(function (a, b) { return LIB_CAT_ORDER[recipeCat(a)] - LIB_CAT_ORDER[recipeCat(b)]; });
+
+            if (!keys.length) { dir.innerHTML = '<p class="text-xs text-stoneNeutral-700 italic">No recipes in this category.</p>'; }
+
+            keys.forEach(key => {
                 const r = recipes[key];
                 const btn = document.createElement('button');
                 btn.className = `w-full text-left p-3 rounded-lg border text-sm font-medium transition-all ${r.id === selectedRecipeId ? 'bg-emeraldAccent text-white border-emeraldAccent shadow-sm' : 'bg-stoneNeutral-50 hover:bg-stoneNeutral-100 text-stoneNeutral-800 border-stoneNeutral-200'}`;
@@ -1338,6 +1368,13 @@ function updateMealDropdownLabels(days) {
             });
             const notesSave = document.getElementById('recipe-notes-save');
             if (notesSave) notesSave.addEventListener('click', saveNotes);
+            // Recipe Library category filter (All / Breakfast / Meals / Dessert).
+            document.querySelectorAll('.recipe-lib-btn').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    recipeLibFilter = b.getAttribute('data-cat') || 'all';
+                    renderRecipeScaler();
+                });
+            });
         })();
 
         // Init — wait for the Supabase data AND the persisted state, then render THIS page.

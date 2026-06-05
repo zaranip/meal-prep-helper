@@ -240,6 +240,34 @@ async function testOverlap() {
     return ok;
 }
 
+// Recipe Library (recipes page): category filter + ordering breakfast -> meals -> dessert.
+async function testRecipeLibrary() {
+    const b = await bootDOM('recipes.html');
+    const w = b.w, d = w.document;
+    const cat = (el) => (el.querySelector('span:last-child') || {}).textContent.toLowerCase();
+    const order = { breakfast: 0, meal: 1, dessert: 2, snack: 2 };
+    const cats = () => Array.from(d.getElementById('recipe-directory').children).map(cat);
+
+    const allCats = cats();
+    // Non-decreasing category order across the full list.
+    let ordered = true;
+    for (let i = 1; i < allCats.length; i++) if ((order[allCats[i]] ?? 9) < (order[allCats[i - 1]] ?? 9)) ordered = false;
+    const firstIsBreakfast = allCats[0] === 'breakfast';
+    const lastIsDessert = order[allCats[allCats.length - 1]] === 2;
+
+    // Filter to Breakfast -> only breakfast rows.
+    const bBtn = Array.from(d.querySelectorAll('.recipe-lib-btn')).find((x) => x.getAttribute('data-cat') === 'breakfast');
+    bBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 10));
+    const onlyBreakfast = cats().every((c) => c === 'breakfast') && cats().length > 0;
+    const btnActive = bBtn.classList.contains('bg-emeraldAccent');
+    b.dom.window.close();
+
+    const ok = allCats.length > 0 && ordered && firstIsBreakfast && lastIsDessert && onlyBreakfast && btnActive;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'recipe-lib (ordered=' + ordered + ', first=' + allCats[0] + ', last=' + allCats[allCats.length - 1] + ', breakfast-filter=' + onlyBreakfast + ', active=' + btnActive + ')');
+    return ok;
+}
+
 (async function () {
     let failed = false;
     for (const page of PAGES) {
@@ -254,6 +282,7 @@ async function testOverlap() {
     if (!(await testQuickAdd())) failed = true;
     if (!(await testWeekEditor())) failed = true;
     if (!(await testOverlap())) failed = true;
-    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap (mocked backend).');
+    if (!(await testRecipeLibrary())) failed = true;
+    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap + recipe-library (mocked backend).');
     process.exitCode = failed ? 1 : 0;
 })();

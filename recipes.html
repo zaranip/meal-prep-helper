@@ -48,6 +48,12 @@
                 <!-- Recipe Library Directory -->
                 <div class="space-y-4">
                     <h3 class="text-sm font-bold text-stoneNeutral-900 uppercase tracking-wider mb-2">Recipe Library</h3>
+                    <div id="recipe-lib-filter" class="flex flex-wrap gap-1 mb-3">
+                        <button data-cat="all" class="recipe-lib-btn text-xs font-semibold px-2.5 py-1 rounded border hover:bg-stoneNeutral-100">All</button>
+                        <button data-cat="breakfast" class="recipe-lib-btn text-xs font-semibold px-2.5 py-1 rounded border hover:bg-stoneNeutral-100">Breakfast</button>
+                        <button data-cat="meal" class="recipe-lib-btn text-xs font-semibold px-2.5 py-1 rounded border hover:bg-stoneNeutral-100">Meals</button>
+                        <button data-cat="dessert" class="recipe-lib-btn text-xs font-semibold px-2.5 py-1 rounded border hover:bg-stoneNeutral-100">Dessert</button>
+                    </div>
                     <div id="recipe-directory" class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
                         <!-- Populated via JavaScript -->
                     </div>
