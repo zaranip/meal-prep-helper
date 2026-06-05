@@ -9,17 +9,19 @@ const { execSync } = require('child_process');
 const repoRoot = path.join(__dirname, '..');
 
 function loadData() {
+    // 1) Working-tree js/data.js, if it still holds the data (pre-migration / restored).
     let src = fs.readFileSync(path.join(repoRoot, 'js', 'data.js'), 'utf8');
     if (!/ingredientDB\s*=/.test(src)) {
-        // Working-tree data.js was shrunk to state-only — read the original verified data
-        // from git HEAD as the baseline.
-        try {
-            src = execSync('git show HEAD:js/data.js', { cwd: repoRoot, encoding: 'utf8' });
-        } catch (e) {
-            throw new Error('js/data.js no longer contains the data and `git show HEAD:js/data.js` failed (' + e.message + '). The verified baseline lives in supabase/seed_app.sql.');
+        // 2) The frozen accepted baseline (current source of truth once the data moved to
+        //    Supabase and data.js was shrunk). Already in the {ingredientDB, recipes, ...} shape.
+        const baseline = path.join(__dirname, 'data-baseline.json');
+        if (fs.existsSync(baseline)) {
+            return JSON.parse(fs.readFileSync(baseline, 'utf8'));
         }
+        // 3) Last resort: the original data.js from git history.
+        try { src = execSync('git show HEAD:js/data.js', { cwd: repoRoot, encoding: 'utf8' }); } catch (e) { src = ''; }
         if (!/ingredientDB\s*=/.test(src)) {
-            throw new Error('Original data.js not found in git HEAD; the verified baseline now lives in supabase/seed_app.sql.');
+            throw new Error('No data source found: js/data.js is shrunk, scripts/data-baseline.json is missing, and git HEAD has no original. Run `node scripts/freeze-baseline.js`.');
         }
     }
     src += '\nmodule.exports = { ingredientDB, recipes, weeksPlan, snacksBaseline, packagingDB };\n';

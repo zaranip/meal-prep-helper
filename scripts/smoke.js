@@ -36,7 +36,23 @@ function mockClient() {
             signInWithPassword: () => Promise.resolve({ error: null }),
             signOut: () => Promise.resolve({ error: null })
         },
-        functions: { invoke: () => Promise.resolve({ data: { results: [] }, error: null }) }
+        functions: {
+            invoke: (_name, opts) => {
+                const body = (opts && opts.body) || {};
+                if (body.action === 'importRecipe') return Promise.resolve({
+                    data: {
+                        title: 'Test Paella', yieldServings: 4,
+                        ingredients: ['2 tablespoons olive oil', '1 pound chicken thighs', '2 cloves garlic, minced'],
+                        steps: ['Heat the oil.', 'Add the chicken.', 'Serve.'],
+                        nutritionPerServing: { calories: 500, protein: 30, fat: 20, carbs: 40, fiber: 5 },
+                        sourceUrl: body.url
+                    }, error: null
+                });
+                if (body.action === 'search') return Promise.resolve({ data: { results: [{ fdcId: 111, description: 'TEST ' + (body.query || ''), dataType: 'Branded' }] }, error: null });
+                if (body.action === 'fetchNutrients') return Promise.resolve({ data: { usda_fdc_id: 111, name: 'Test ingredient', data_type: 'Branded', calories: 100, protein: 5, fat: 2, carbs: 10, fiber: 1 }, error: null });
+                return Promise.resolve({ data: { results: [] }, error: null });
+            }
+        }
     };
 }
 
@@ -44,10 +60,10 @@ const SCRIPTS = ['js/config.js', 'js/data-reconstruct.js', 'js/data-layer.js', '
 
 const PAGES = [
     { file: 'index.html', label: 'dashboard', assert: (d) => /1800/.test(d.getElementById('sum-daily-cal').textContent) && d.getElementById('meals-list').children.length === 4 },
-    { file: 'recipes.html', label: 'recipes', assert: (d) => d.getElementById('recipe-title').textContent !== '--' && d.getElementById('scaled-ingredients').children.length > 0 },
+    { file: 'recipes.html', label: 'recipes', assert: (d) => d.getElementById('recipe-title').textContent !== '--' && d.getElementById('scaled-ingredients').children.length > 0 && !!d.getElementById('recipe-notes-save') && d.getElementById('recipe-notes-save').disabled === true },
     { file: 'planner.html', label: 'planner', assert: (d) => d.getElementById('grocery-items-container').children.length > 0 && d.getElementById('timeline-container').children.length > 0 },
     { file: 'calendar.html', label: 'calendar', assert: (d) => d.getElementById('schedule-container').children.length > 0 },
-    { file: 'builder.html', label: 'builder', assert: (d) => d.getElementById('builder-auth').innerHTML.length > 0, extra: ['js/builder.js'] }
+    { file: 'builder.html', label: 'builder', assert: (d) => d.getElementById('builder-auth').innerHTML.length > 0, extra: ['js/recipe-parse.js', 'js/builder.js'] }
 ];
 
 async function runPage(page) {
@@ -130,6 +146,100 @@ async function testStateLink() {
     return ok;
 }
 
+// NYT import on the Add Recipe page: clicking Import fills title/steps/servings and populates
+// the ingredient draft (matched to USDA, flagged). Also asserts the Meals merge (Meal option,
+// no Lunch/Dinner).
+async function testImport() {
+    const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+    const w = b.w, d = w.document;
+    d.getElementById('b-import-url').value = 'https://cooking.nytimes.com/recipes/123-test';
+    d.getElementById('b-import-btn').dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 300)); // import + USDA matching pool
+    const title = d.getElementById('b-title').value;
+    const steps = d.getElementById('b-instructions').value;
+    const rows = d.getElementById('b-draft-list').children.length;
+    const opts = Array.from(d.getElementById('b-meal-type').options).map((o) => o.value);
+    const mealsOk = opts.indexOf('meal') >= 0 && opts.indexOf('lunch') < 0 && opts.indexOf('dinner') < 0;
+    b.dom.window.close();
+    const ok = title === 'Test Paella' && /Heat the oil/.test(steps) && rows === 3 && mealsOk;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'nyt-import  (title="' + title + '", steps=' + /Heat/.test(steps) + ', draft rows=' + rows + ', meal-opts ok=' + mealsOk + ')');
+    return ok;
+}
+
+// Quick-add staples: rice blend adds 2 verified rows scaled by base servings (37.5/18.75 × 2).
+async function testQuickAdd() {
+    const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+    const w = b.w, d = w.document;
+    d.getElementById('b-base-servings').value = '2';
+    const riceBtn = Array.from(d.querySelectorAll('.quick-add-btn')).find((x) => x.getAttribute('data-quick') === 'rice');
+    riceBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 30));
+    const rows = d.getElementById('b-draft-list').children.length;
+    const txt = d.getElementById('b-draft-list').textContent;
+    const grams = Array.from(d.querySelectorAll('.b-grams')).map((x) => x.value);
+    b.dom.window.close();
+    const ok = rows === 2 && /White Rice/.test(txt) && /Black Rice/.test(txt) && grams.indexOf('75') >= 0 && grams.indexOf('37.5') >= 0;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'quick-add  (rice blend @ 2× servings -> ' + rows + ' rows, grams=' + JSON.stringify(grams) + ')');
+    return ok;
+}
+
+// Calendar week-template editor renders the existing week_plans as editable cards + an Add button.
+async function testWeekEditor() {
+    const b = await bootDOM('calendar.html', ['js/week-editor.js']);
+    await new Promise((r) => b.w.setTimeout(r, 40));
+    const cards = b.w.document.getElementById('week-list').children.length;
+    const hasAdd = !!b.w.document.getElementById('week-add');
+    const hasSlots = b.w.document.querySelectorAll('.week-slot').length >= 4;
+    const sum = b.w.document.getElementById('week-summary-1');
+    const sumTxt = sum ? sum.textContent : '';
+    const hasSummary = /Daily/.test(sumTxt) && /Week/.test(sumTxt) && /kcal/.test(sumTxt);
+    b.dom.window.close();
+    const ok = cards === 4 && hasAdd && hasSlots && hasSummary;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'week-editor (calendar: ' + cards + ' templates, add=' + hasAdd + ', slots=' + hasSlots + ', daily/week summary=' + hasSummary + ')');
+    return ok;
+}
+
+// Ingredient overlap tool (calendar): pairs collapse to top 3 with a "See all" toggle; each meal
+// pair has a "+ New week" quick-add; focus mode ranks others vs a chosen recipe.
+async function testOverlap() {
+    const b = await bootDOM('calendar.html', ['js/week-editor.js', 'js/overlap.js']);
+    const w = b.w, d = w.document;
+    const results = () => d.getElementById('overlap-results');
+    await new Promise((r) => w.setTimeout(r, 40));
+    const cats = d.getElementById('overlap-cat').options.length;
+    const focusOpts = d.getElementById('overlap-focus').options.length; // 8 meals + "no focus"
+    const previewCards = results().querySelectorAll('.bg-white').length; // collapsed -> 3
+    const pairTxt = results().textContent;
+    const hasAddBtn = !!results().querySelector('.overlap-addweek');
+    const previewOk = previewCards === 3 && /shared/.test(pairTxt) && /Tofu/.test(pairTxt) && hasAddBtn;
+
+    // "See all" expands beyond the preview.
+    const toggle = d.getElementById('overlap-toggle');
+    const hasToggle = !!toggle && /See all/.test(toggle.textContent);
+    toggle.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 20));
+    const expandedCards = results().querySelectorAll('.bg-white').length;
+    const expandOk = hasToggle && expandedCards > 3;
+
+    // Quick-add while signed out -> surfaces the sign-in prompt (mock session is null).
+    results().querySelector('.overlap-addweek').dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 10));
+    const addMsgOk = /Sign in/.test(results().querySelector('.overlap-add-msg').textContent);
+
+    // Focus mode: rank others vs a chosen recipe.
+    const focus = d.getElementById('overlap-focus');
+    focus.value = focus.options[1].value;
+    focus.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 20));
+    const focusCards = results().querySelectorAll('.bg-white').length;
+    const focusOk = focusCards > 0 && /share the most with/.test(results().textContent);
+    b.dom.window.close();
+
+    const ok = cats === 4 && focusOpts >= 3 && previewOk && expandOk && addMsgOk && focusOk;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'overlap    (cats=' + cats + ', preview=' + previewCards + ', expanded=' + expandedCards + ', add-btn=' + hasAddBtn + ', signin-msg=' + addMsgOk + ', focus cards=' + focusCards + ')');
+    return ok;
+}
+
 (async function () {
     let failed = false;
     for (const page of PAGES) {
@@ -140,6 +250,10 @@ async function testStateLink() {
         if (!okRender) failed = true;
     }
     if (!(await testStateLink())) failed = true;
-    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links across pages (mocked backend).');
+    if (!(await testImport())) failed = true;
+    if (!(await testQuickAdd())) failed = true;
+    if (!(await testWeekEditor())) failed = true;
+    if (!(await testOverlap())) failed = true;
+    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap (mocked backend).');
     process.exitCode = failed ? 1 : 0;
 })();

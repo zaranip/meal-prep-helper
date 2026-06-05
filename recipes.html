@@ -175,10 +175,15 @@
                                 </div>
                             </div>
 
-                            <!-- Recipe notes (saved with the recipe via Save) -->
+                            <!-- Recipe notes (own "Save notes" button; shared with the Add Recipe tab for custom recipes) -->
                             <div class="mt-8 p-5 bg-stoneNeutral-50 rounded-xl border border-stoneNeutral-200">
                                 <h4 class="font-bold text-stoneNeutral-900 flex items-center gap-2 mb-2 text-sm">&#128221; Notes</h4>
-                                <textarea id="recipe-notes" rows="3" placeholder="Tweaks, substitutions, reminders… Saved when you press Save." class="w-full bg-white border border-stoneNeutral-200 rounded px-3 py-2 text-sm text-stoneNeutral-800 focus:outline-none focus:ring-2 focus:ring-emeraldAccent"></textarea>
+                                <textarea id="recipe-notes" rows="3" placeholder="Tweaks, substitutions, reminders… press “Save notes” to keep them." class="w-full bg-white border border-stoneNeutral-200 rounded px-3 py-2 text-sm text-stoneNeutral-800 focus:outline-none focus:ring-2 focus:ring-emeraldAccent"></textarea>
+                                <div class="flex items-center gap-2 mt-2 flex-wrap">
+                                    <button id="recipe-notes-save" class="px-3 py-1.5 text-xs font-bold bg-emeraldAccent text-white rounded hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed">Save notes</button>
+                                    <span id="recipe-notes-status" class="text-[11px] font-semibold"></span>
+                                </div>
+                                <div id="recipe-notes-auth" class="hidden mt-2 flex items-center gap-2 text-xs flex-wrap"></div>
                             </div>
 
                             <!-- Rice vs. Pasta macro-change box (shown for rice-based recipes) -->

@@ -184,17 +184,35 @@ function updateMealDropdownLabels(days) {
 
         // Ensure custom (Supabase) recipes appear as options in the meal selectors.
         function ensureCustomDropdownOptions() {
-            const map = { breakfast: 'breakfast-mix', lunch: 'lunch-mix', dinner: 'dinner-mix', dessert: 'dessert-mix', snack: 'dessert-mix' };
+            // A 'meal' goes in BOTH main slots (no Lunch/Dinner distinction). Legacy lunch/dinner
+            // values still map to their slot. breakfast/dessert/snack as before.
+            const map = {
+                breakfast: ['breakfast-mix'], meal: ['lunch-mix', 'dinner-mix'],
+                lunch: ['lunch-mix'], dinner: ['dinner-mix'], dessert: ['dessert-mix'], snack: ['dessert-mix']
+            };
             Object.keys(recipes).forEach(k => {
                 if (k.indexOf('sb_') !== 0) return;
                 const rec = recipes[k];
-                const sel = document.getElementById(map[rec.mealType] || 'dessert-mix');
-                if (!sel || sel.querySelector('option[value="' + k + '"]')) return;
-                const opt = document.createElement('option');
-                opt.value = k;
-                opt.textContent = rec.title + ' (' + Math.round(rec.baseMacros.cal) + ' kcal)';
-                sel.appendChild(opt);
+                (map[rec.mealType] || ['dessert-mix']).forEach(selId => {
+                    const sel = document.getElementById(selId);
+                    if (!sel || sel.querySelector('option[value="' + k + '"]')) return;
+                    const opt = document.createElement('option');
+                    opt.value = k;
+                    opt.textContent = rec.title + ' (' + Math.round(rec.baseMacros.cal) + ' kcal)';
+                    sel.appendChild(opt);
+                });
             });
+        }
+
+        // Rebuild the "Load Template" picker from weeksPlan, so weeks created/deleted on the
+        // Calendar page show up here. Preserves the current selection.
+        function populateWeekSelector() {
+            const sel = document.getElementById('week-selector');
+            if (!sel) return;
+            const cur = sel.value;
+            const opts = Object.keys(weeksPlan).sort((a, b) => (+a) - (+b)).map(w => `<option value="${w}">Week ${w}</option>`).join('');
+            sel.innerHTML = opts + '<option value="custom">Custom Mix &amp; Match</option>';
+            if (cur && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
         }
 
         // TAB 1: WEEKLY DASHBOARD
@@ -203,6 +221,7 @@ function updateMealDropdownLabels(days) {
             container.innerHTML = '';
 
             ensureCustomDropdownOptions();
+            populateWeekSelector();
             const dayDaysInput = document.getElementById('dashboard-days');
             if (dayDaysInput && document.activeElement !== dayDaysInput) dayDaysInput.value = prepDays;
             const dayDaysNum = prepDays;
@@ -216,8 +235,8 @@ function updateMealDropdownLabels(days) {
 
             const activeSelections = [
                 { role: 'Breakfast', key: customSelections.breakfast },
-                { role: 'Lunch', key: customSelections.lunch },
-                { role: 'Dinner', key: customSelections.dinner },
+                { role: 'Meal', key: customSelections.lunch },
+                { role: 'Meal', key: customSelections.dinner },
                 { role: 'Snack/Dessert', key: customSelections.dessert }
             ];
 
@@ -448,11 +467,17 @@ function updateMealDropdownLabels(days) {
             if (recipeEditStore[id] && recipeEditStore[id].snapshot) return recipeEditStore[id].snapshot;
             return pristineRecipes[id] ? editableSnapshot(pristineRecipes[id]) : editableSnapshot(recipes[id]);
         }
-        function recipeNotes(id) { return (draftNotes[id] != null) ? draftNotes[id] : ((recipeEditStore[id] && recipeEditStore[id].notes) || ''); }
-        function recipeIsDirty(id) {
-            const notesChanged = (draftNotes[id] != null && draftNotes[id] !== ((recipeEditStore[id] && recipeEditStore[id].notes) || ''));
-            return editableSnapshot(recipes[id]) !== savedSnapshot(id) || notesChanged;
+        // Where the SAVED notes live: custom recipes -> Supabase (recipes[id].notes, loaded by
+        // the data layer); stock recipes -> the localStorage edit store. draftNotes is the
+        // unsaved in-textarea value for either.
+        function savedNotes(id) {
+            if (isCustomRecipe(id)) return (recipes[id] && recipes[id].notes) || '';
+            return (recipeEditStore[id] && recipeEditStore[id].notes) || '';
         }
+        function recipeNotes(id) { return (draftNotes[id] != null) ? draftNotes[id] : savedNotes(id); }
+        function notesDirty(id) { return draftNotes[id] != null && draftNotes[id] !== savedNotes(id); }
+        function structuralDirty(id) { return editableSnapshot(recipes[id]) !== savedSnapshot(id); }
+        function recipeIsDirty(id) { return structuralDirty(id) || notesDirty(id); }
         // Boot: snapshot originals FIRST, then apply any saved stock edits on top.
         function initRecipeEdits() {
             recipeEditStore = loadRecipeEditStore();
@@ -493,6 +518,72 @@ function updateMealDropdownLabels(days) {
             setEditStatus('Reverted to original.', true);
         }
         function toggleRecipeEditMode() { recipeEditMode = !recipeEditMode; renderRecipeScaler(); }
+
+        // ----- Notes: its own Save, independent of the structural edit Save -------
+        // Notes save for BOTH stock (localStorage) and custom (Supabase) recipes — this is the
+        // box shared with the Add Recipe tab. Structural edits to custom recipes remain
+        // builder-only (live preview); only the NOTES are persisted here.
+        function setNotesStatus(msg, ok) {
+            const el = document.getElementById('recipe-notes-status');
+            if (!el) return;
+            el.textContent = msg || '';
+            el.className = 'text-[11px] font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent');
+        }
+        function updateNotesToolbar() {
+            const btn = document.getElementById('recipe-notes-save');
+            if (!btn) return;
+            const dis = !notesDirty(selectedRecipeId);
+            btn.disabled = dis;
+            btn.classList.toggle('opacity-40', dis);
+            btn.classList.toggle('cursor-not-allowed', dis);
+        }
+        // Inline sign-in shown only if she tries to save a custom note while signed out. The
+        // session is shared across pages (window.supabaseClient), so this is usually skipped.
+        function showNotesAuth() {
+            const el = document.getElementById('recipe-notes-auth');
+            const sb = window.supabaseClient;
+            if (!el || !sb || !sb.auth) return;
+            el.classList.remove('hidden');
+            el.innerHTML =
+                '<input id="rn-email" type="email" placeholder="email" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-40">' +
+                '<input id="rn-pass" type="password" placeholder="password" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-32">' +
+                '<button id="rn-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
+                '<span id="rn-msg" class="text-amberAccent"></span>';
+            document.getElementById('rn-signin').addEventListener('click', async function () {
+                const r = await sb.auth.signInWithPassword({ email: document.getElementById('rn-email').value.trim(), password: document.getElementById('rn-pass').value });
+                if (r.error) { document.getElementById('rn-msg').textContent = r.error.message; return; }
+                el.classList.add('hidden');
+                saveNotes(); // retry now that the (shared) session is established
+            });
+        }
+        async function saveNotes() {
+            const id = selectedRecipeId;
+            const ta = document.getElementById('recipe-notes');
+            const val = ta ? ta.value : recipeNotes(id);
+            if (isCustomRecipe(id)) {
+                const sb = window.supabaseClient;
+                const sbId = recipes[id] && recipes[id].sbId;
+                if (!sb || !sbId) { setNotesStatus('Backend unavailable — can’t save notes.', false); return; }
+                let session = null;
+                try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
+                if (!session) { setNotesStatus('Sign in to save notes.', false); showNotesAuth(); return; }
+                setNotesStatus('Saving…', true);
+                const res = await sb.from('recipes').update({ notes: val || null }).eq('id', sbId);
+                if (res.error) { setNotesStatus(res.error.message, false); return; }
+                recipes[id].notes = val;          // reflect immediately (no reload needed)
+            } else {
+                // Stock: persist ONLY notes (+ a baseline snapshot for dirty/revert), never the
+                // pending structural edits — those go through the toolbar Save.
+                const store = recipeEditStore[id] || {};
+                store.notes = val;
+                if (!store.snapshot) store.snapshot = pristineRecipes[id] ? editableSnapshot(pristineRecipes[id]) : editableSnapshot(recipes[id]);
+                recipeEditStore[id] = store;
+                persistRecipeEditStore();
+            }
+            delete draftNotes[id];
+            setNotesStatus('Notes saved.', true);
+            updateEditToolbar();
+        }
         function setEditStatus(msg, ok) {
             const el = document.getElementById('recipe-edit-status');
             if (!el) return;
@@ -501,15 +592,18 @@ function updateMealDropdownLabels(days) {
         }
         function updateEditToolbar() {
             const id = selectedRecipeId;
-            const custom = isCustomRecipe(id), dirty = recipeIsDirty(id), saved = !!recipeEditStore[id];
+            // The toolbar Save / "Live preview" status are about STRUCTURAL edits only; notes have
+            // their own Save button + status, so editing a note never shows the structural message.
+            const custom = isCustomRecipe(id), sdirty = structuralDirty(id), saved = !!recipeEditStore[id];
             const editBtn = document.getElementById('recipe-edit-btn');
             const saveBtn = document.getElementById('recipe-save-btn');
             const revertBtn = document.getElementById('recipe-revert-btn');
             if (editBtn) editBtn.innerHTML = recipeEditMode ? 'Done editing' : '&#9999;&#65039; Edit recipe';
-            if (saveBtn) { const dis = custom || !dirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Custom recipes save in the Add Recipe tab' : ''; }
-            if (revertBtn) { const can = dirty || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
-            if (dirty) setEditStatus(custom ? 'Live preview — custom recipes save in the Add Recipe tab' : 'Unsaved changes', false);
-            else setEditStatus(custom ? 'Custom recipe — edit in Add Recipe tab' : (saved ? 'Saved edits applied' : ''), true);
+            if (saveBtn) { const dis = custom || !sdirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Custom recipe structure is edited in the Add Recipe tab' : ''; }
+            if (revertBtn) { const can = sdirty || notesDirty(id) || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
+            if (sdirty) setEditStatus(custom ? 'Live preview — recipe structure saves in the Add Recipe tab (notes save below)' : 'Unsaved changes', false);
+            else setEditStatus(custom ? 'Custom recipe — structure is edited in the Add Recipe tab; notes save below' : (saved ? 'Saved edits applied' : ''), true);
+            updateNotesToolbar();
         }
         function setScalerMacros(current, mult) {
             const rdelta = (amountMode === 'whole' && current.ingredients) ? roundingMacroDelta(current, mult) : { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
@@ -618,6 +712,9 @@ function updateMealDropdownLabels(days) {
             snapshotPristine(selectedRecipeId);
             const notesEl = document.getElementById('recipe-notes');
             if (notesEl) notesEl.value = recipeNotes(selectedRecipeId);
+            setNotesStatus('');                                                   // fresh recipe -> clear status
+            const notesAuth = document.getElementById('recipe-notes-auth');
+            if (notesAuth) { notesAuth.classList.add('hidden'); notesAuth.innerHTML = ''; }
 
             const editor = document.getElementById('recipe-editor');
             const readView = document.getElementById('scaler-readview');
@@ -1236,8 +1333,11 @@ function updateMealDropdownLabels(days) {
             if (revertBtn) revertBtn.addEventListener('click', revertRecipeEdits);
             if (notes) notes.addEventListener('input', (e) => {
                 draftNotes[selectedRecipeId] = e.target.value;
+                setNotesStatus('');           // clear a stale "Notes saved." once she edits again
                 updateEditToolbar();
             });
+            const notesSave = document.getElementById('recipe-notes-save');
+            if (notesSave) notesSave.addEventListener('click', saveNotes);
         })();
 
         // Init — wait for the Supabase data AND the persisted state, then render THIS page.

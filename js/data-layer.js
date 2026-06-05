@@ -67,7 +67,7 @@
         // every page (Dashboard dropdowns, Recipes scaler). Best-effort — optional.
         try {
             var cr = await sb.from('recipes').select(
-                'id,title,instructions,base_servings,freezer_tips,meal_type,' +
+                'id,title,instructions,base_servings,freezer_tips,meal_type,notes,' +
                 'recipe_ingredients(quantity_value,quantity_unit,weight_in_grams,' +
                 'ingredients(name,usda_fdc_id,data_type,calories_per_100g,protein_per_100g,fat_per_100g,carbs_per_100g,fiber_per_100g,package_unit,package_weight_g,is_estimate))'
             ).order('created_at', { ascending: true });

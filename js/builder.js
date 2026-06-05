@@ -264,7 +264,7 @@
             li.className = 'border-b border-stoneNeutral-100 py-1.5';
             li.innerHTML =
                 '<div class="flex justify-between items-center gap-2">' +
-                    '<span class="flex-1 text-stoneNeutral-800">' + esc(d.name) + ' <span class="text-[10px] text-amberAccent">est.</span></span>' +
+                    '<span class="flex-1 text-stoneNeutral-800">' + esc(d.name) + (d.verified ? ' <span class="text-[10px] text-emeraldAccent">verified</span>' : ' <span class="text-[10px] text-amberAccent">est.</span>') + '</span>' +
                     '<input type="number" min="0" step="1" value="' + d.grams + '" class="b-grams w-16 bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-1.5 py-1 text-xs text-right">' +
                     '<span class="text-[10px] text-stoneNeutral-700">g</span>' +
                     '<button class="b-del text-amberAccent font-bold px-1" title="Remove">&times;</button>' +
@@ -294,7 +294,7 @@
                     usda_fdc_id: d.fdcId, name: d.name,
                     calories_per_100g: d.per.calories, protein_per_100g: d.per.protein,
                     fat_per_100g: d.per.fat, carbs_per_100g: d.per.carbs, fiber_per_100g: d.per.fiber,
-                    data_type: d.dataType, is_estimate: true, package_unit: 'g'
+                    data_type: d.dataType, is_estimate: !d.verified, package_unit: 'g'
                 };
                 var res = await sb.from('ingredients').upsert([row], { onConflict: 'usda_fdc_id' }).select('id').single();
                 if (res.error) throw new Error(res.error.message);
@@ -306,6 +306,7 @@
                 title: title, meal_type: $('b-meal-type').value,
                 base_servings: parseFloat($('b-base-servings').value) || 1,
                 freezer_tips: $('b-freezer').value.trim() || null,
+                notes: ($('b-notes') ? $('b-notes').value.trim() : '') || null,
                 instructions: $('b-instructions').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
             };
 
@@ -340,6 +341,7 @@
     function resetForm() {
         editingId = null; draft = [];
         $('b-title').value = ''; $('b-instructions').value = ''; $('b-freezer').value = '';
+        if ($('b-notes')) $('b-notes').value = '';
         $('b-base-servings').value = '1'; $('b-meal-type').value = 'breakfast';
         $('builder-form-title').textContent = 'New recipe';
         $('b-save').textContent = 'Save recipe';
@@ -376,6 +378,7 @@
         $('b-meal-type').value = r.meal_type || 'breakfast';
         $('b-base-servings').value = r.base_servings || 1;
         $('b-freezer').value = r.freezer_tips || '';
+        if ($('b-notes')) $('b-notes').value = r.notes || '';
         $('b-instructions').value = (r.instructions || []).join('\n');
         draft = (r.recipe_ingredients || []).map(function (ri) {
             var p = ri.ingredients || {};
@@ -401,7 +404,7 @@
     }
 
     // ---- load all recipes from Supabase -----------------------------------
-    var SELECT = 'id,title,instructions,base_servings,freezer_tips,meal_type,' +
+    var SELECT = 'id,title,instructions,base_servings,freezer_tips,meal_type,notes,' +
         'recipe_ingredients(quantity_value,quantity_unit,weight_in_grams,' +
         'ingredients(name,usda_fdc_id,data_type,calories_per_100g,protein_per_100g,fat_per_100g,carbs_per_100g,fiber_per_100g,package_unit,package_weight_g,is_estimate))';
 
@@ -416,6 +419,132 @@
     }
 
     // ---- boot --------------------------------------------------------------
+    // ---- NYT Cooking import ------------------------------------------------
+    function setImportStatus(msg, ok) {
+        var el = $('b-import-status');
+        if (!el) return;
+        el.textContent = msg || '';
+        el.className = 'text-xs mt-2 ' + (ok === true ? 'text-emeraldAccent font-semibold' : ok === false ? 'text-amberAccent font-semibold' : 'text-stoneNeutral-700');
+    }
+    function showNutritionBanner(n, servings) {
+        var el = $('b-nutrition-banner');
+        if (!el) return;
+        var parts = [];
+        if (n) {
+            if (n.calories != null) parts.push(Math.round(n.calories) + ' kcal');
+            if (n.protein != null) parts.push(n.protein + 'g protein');
+            if (n.fat != null) parts.push(n.fat + 'g fat');
+            if (n.carbs != null) parts.push(n.carbs + 'g carbs');
+            if (n.fiber != null) parts.push(n.fiber + 'g fiber');
+        }
+        if (!parts.length) { el.classList.add('hidden'); return; }
+        el.innerHTML = '<b>NYT-reported, per serving</b>' + (servings ? ' (yields ' + esc(servings) + ')' : '') + ': ' + esc(parts.join(' · ')) + '. Cross-check against your assembled totals below.';
+        el.classList.remove('hidden');
+    }
+    function revealPasteFallback(msg) {
+        setImportStatus(msg || 'Could not import automatically.', false);
+        var w = $('b-paste-wrap'); if (w) w.classList.remove('hidden');
+    }
+    // Run an async worker over items with limited concurrency.
+    async function runPool(items, conc, worker) {
+        var idx = 0;
+        async function next() { while (idx < items.length) { var i = idx++; await worker(items[i], i); } }
+        var ws = []; for (var k = 0; k < Math.min(conc, items.length); k++) ws.push(next());
+        await Promise.all(ws);
+    }
+    // Parse free-text ingredient lines, match each to USDA, and add flagged draft rows.
+    async function importIngredients(lines) {
+        var parse = window.parseIngredientLine || function (l) { return { name: String(l || '').trim(), grams: 0 }; };
+        var parsed = (lines || []).map(parse).filter(function (p) { return p && p.name; });
+        if (!parsed.length) { setImportStatus('No ingredients found to import.', false); return; }
+        var total = parsed.length, done = 0;
+        setImportStatus('Matching ingredients to USDA… 0/' + total);
+        await runPool(parsed, 4, async function (p) {
+            var row = {
+                fdcId: null, name: p.name, dataType: null,
+                per: { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 },
+                grams: (p.grams != null ? p.grams : 0), imported: true
+            };
+            try {
+                var results = await search(p.name);
+                if (results && results.length) {
+                    var n = await invokeFn({ action: 'fetchNutrients', fdcId: results[0].fdcId });
+                    if (n && !n.unavailable) {
+                        row.fdcId = n.usda_fdc_id; row.dataType = n.data_type;
+                        row.per = { calories: n.calories, protein: n.protein, fat: n.fat, carbs: n.carbs, fiber: n.fiber };
+                    }
+                }
+            } catch (e) { /* leave unmatched (0 macros) for the user to fix */ }
+            draft.push(row);
+            done++; setImportStatus('Matching ingredients to USDA… ' + done + '/' + total);
+            renderDraft();
+        });
+        setImportStatus('Imported ' + total + ' ingredient' + (total === 1 ? '' : 's') + ' — all flagged as estimates. Review amounts & macros, set the meal type, then Save.', true);
+        syncWriteUI();
+    }
+    function applyImported(data) {
+        if (data.title) $('b-title').value = data.title;
+        if (data.yieldServings) $('b-base-servings').value = data.yieldServings;
+        if (data.steps && data.steps.length) $('b-instructions').value = data.steps.join('\n');
+        showNutritionBanner(data.nutritionPerServing, data.yieldServings);
+        if (data.ingredients && data.ingredients.length) importIngredients(data.ingredients);
+        else setImportStatus('Imported title & steps. Add ingredients below.', true);
+    }
+    async function importFromNyt() {
+        var url = ($('b-import-url').value || '').trim();
+        if (!url) { setImportStatus('Paste a NYT Cooking link first.', false); return; }
+        setImportStatus('Importing…');
+        var data;
+        try { data = await invokeFn({ action: 'importRecipe', url: url }); }
+        catch (e) { setImportStatus(e.message, false); return; }
+        if (data && data.blocked) { revealPasteFallback(data.message); return; }
+        applyImported(data);
+    }
+    function importFromPaste() {
+        var steps = ($('b-paste-steps').value || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+        var ings = ($('b-paste-ings').value || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+        if (steps.length) $('b-instructions').value = steps.join('\n');
+        if (ings.length) importIngredients(ings);
+        else setImportStatus('Paste at least one ingredient line.', false);
+    }
+
+    // ---- Quick-add staples (verified macros from the stock ingredientDB) --------
+    // Names match the verified keys so the saved recipe also gets the Rice/Pasta toggle
+    // (rice) and packaging hints (egg carton / tofu block) in the scaler.
+    var QUICK_ADDS = {
+        rice: {
+            label: 'Rice blend', items: [
+                { key: 'white rice (uncooked)', name: 'White Rice (Uncooked)', perServing: 37.5 },
+                { key: 'black rice (uncooked)', name: 'Black Rice (Uncooked)', perServing: 18.75 }
+            ]
+        },
+        egg: { label: 'Egg white carton', items: [{ key: 'kirkland liquid egg whites', name: 'Kirkland Liquid Egg Whites', perServing: 454 }] },
+        tofu: { label: 'Tofu block', items: [{ key: 'extra firm tofu', name: 'Extra Firm Tofu', perServing: 454 }] }
+    };
+    // Convert a verified ingredientDB entry (macros per its standard unit) to per-100g.
+    function verifiedPer100(key) {
+        var db = window.ingredientDB || {};
+        var ing = db[key];
+        if (!ing || !ing.conversions || !ing.conversions.g) return null;
+        var f = 100 / ing.conversions.g;
+        return { calories: (ing.cal || 0) * f, protein: (ing.prot || 0) * f, fat: (ing.fat || 0) * f, carbs: (ing.carb || 0) * f, fiber: (ing.fib || 0) * f };
+    }
+    function quickAdd(id) {
+        var q = QUICK_ADDS[id];
+        if (!q) return;
+        var servings = parseFloat($('b-base-servings').value) || 1;
+        var added = 0, missing = [];
+        q.items.forEach(function (it) {
+            var per = verifiedPer100(it.key);
+            if (!per) { missing.push(it.name); return; }
+            draft.push({ fdcId: null, name: it.name, dataType: 'verified', verified: true, per: per, grams: Math.round(it.perServing * servings * 10) / 10 });
+            added++;
+        });
+        renderDraft();
+        if (missing.length) flash($('b-save-msg'), 'Verified data not loaded for: ' + missing.join(', '), false);
+        else if (added) flash($('b-save-msg'), q.label + ' added (' + servings + '× base servings). Edit grams if needed.', true);
+    }
+
     function wire() {
         $('b-usda-search').addEventListener('click', async function () {
             var q = $('b-usda-query').value.trim();
@@ -427,6 +556,12 @@
         $('b-usda-query').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('b-usda-search').click(); });
         $('b-save').addEventListener('click', save);
         $('builder-cancel-edit').addEventListener('click', resetForm);
+        if ($('b-import-btn')) $('b-import-btn').addEventListener('click', importFromNyt);
+        if ($('b-import-url')) $('b-import-url').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); importFromNyt(); } });
+        if ($('b-paste-go')) $('b-paste-go').addEventListener('click', importFromPaste);
+        document.querySelectorAll('.quick-add-btn').forEach(function (b) {
+            b.addEventListener('click', function () { quickAdd(b.getAttribute('data-quick')); });
+        });
     }
 
     function showConfigWarning(msg) {

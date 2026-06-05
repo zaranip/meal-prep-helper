@@ -41,7 +41,7 @@ create table if not exists recipes (
     instructions   text[] not null default '{}',   -- step-by-step array
     base_servings  numeric(6,2) not null default 1.00,
     freezer_tips   text,
-    meal_type      text check (meal_type in ('breakfast','lunch','dinner','dessert','snack')),
+    meal_type      text check (meal_type in ('breakfast','meal','dessert','snack')),
     created_at     timestamptz not null default timezone('utc', now())
 );
 

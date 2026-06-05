@@ -9,6 +9,14 @@
 (function (root) {
     'use strict';
     function num(x) { return x == null ? x : Number(x); }
+    // No Lunch/Dinner distinction — both are just "Meal". Normalizes display type/meal_type
+    // regardless of what's stored, so the merge takes effect without waiting on a DB migration.
+    function normMealType(t) {
+        const s = String(t || '').toLowerCase();
+        return (s === 'lunch' || s === 'dinner' || s === 'meal') ? 'Meal' : (t || '');
+    }
+    // The carb base (matches app.js getCarbSwap) — sized to hit the per-serving calorie target.
+    var RICE_NAMES = { 'white rice (uncooked)': 1, 'black rice (uncooked)': 1 };
 
     function reconstructFromRows(t) {
         t = t || {};
@@ -37,7 +45,7 @@
             .sort(function (a, b) { return (a.position || 0) - (b.position || 0); })
             .forEach(function (r) {
                 const rec = {
-                    id: r.slug, title: r.title, desc: r.desc, type: r.type,
+                    id: r.slug, title: r.title, desc: r.desc, type: normMealType(r.type),
                     week: (r.week || []).map(Number),
                     baseMacros: r.base_macros,
                     ingredients: byRecipe[r.slug] || [],
@@ -80,26 +88,49 @@
         const r1 = function (v) { return Math.round(v * 10) / 10; };
         const out = {};
         (rows || []).forEach(function (r) {
+            // Start from PER-SERVING amounts (the builder may store the recipe at base_servings).
+            const servings = Number(r.base_servings) > 0 ? Number(r.base_servings) : 1;
             const ings = (r.recipe_ingredients || []).map(function (ri) {
                 const p = ri.ingredients || {};
                 return {
-                    name: p.name || 'Ingredient', amount: num(ri.weight_in_grams) || 0, unit: 'g',
+                    name: p.name || 'Ingredient', amount: (num(ri.weight_in_grams) || 0) / servings, unit: 'g',
                     _m100: {
                         cal: num(p.calories_per_100g) || 0, prot: num(p.protein_per_100g) || 0, fat: num(p.fat_per_100g) || 0,
                         fib: num(p.fiber_per_100g) || 0, carb: num(p.carbs_per_100g) || 0
                     }
                 };
             });
+
+            // Normalize every custom recipe to a fixed TARGET kcal/serving (at the 1800 baseline;
+            // the calorie-goal scaling applies on top, unchanged). If the recipe has rice (the
+            // carb base), keep everything else as-is and size the RICE to fill the gap to TARGET;
+            // otherwise scale the whole recipe to TARGET. If the non-rice part already exceeds
+            // TARGET, rice -> 0 and the recipe shows its real (higher) calories.
+            const TARGET = 700;
+            const calOf = function (i) { return (i._m100.cal || 0) * i.amount / 100; };
+            const riceIngs = ings.filter(function (i) { return RICE_NAMES[i.name.toLowerCase().trim()]; });
+            const total = ings.reduce(function (s, i) { return s + calOf(i); }, 0);
+            if (riceIngs.length) {
+                const riceCal = riceIngs.reduce(function (s, i) { return s + calOf(i); }, 0);
+                const otherCal = total - riceCal;
+                const f = riceCal > 0 ? Math.max(0, TARGET - otherCal) / riceCal : 0;
+                riceIngs.forEach(function (i) { i.amount = i.amount * f; });
+            } else if (total > 0) {
+                const f = TARGET / total;
+                ings.forEach(function (i) { i.amount = i.amount * f; });
+            }
+
             const bm = { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
             ings.forEach(function (i) { const f = i.amount / 100, m = i._m100; bm.cal += m.cal * f; bm.prot += m.prot * f; bm.fat += m.fat * f; bm.fib += m.fib * f; bm.carb += m.carb * f; });
             out['sb_' + r.id] = {
                 id: 'sb_' + r.id, sbId: r.id, custom: true, mealType: r.meal_type || 'snack',
                 title: r.title, desc: 'Custom recipe — USDA estimates. Confirm against packages.',
-                type: cap(r.meal_type || 'Snack'),
+                type: normMealType(cap(r.meal_type || 'Snack')),
                 baseMacros: { cal: Math.round(bm.cal), prot: r1(bm.prot), fat: r1(bm.fat), fib: r1(bm.fib), carb: r1(bm.carb) },
                 ingredients: ings,
                 steps: r.instructions || [],
-                freezerTips: r.freezer_tips || 'No freezer notes for this custom recipe.'
+                freezerTips: r.freezer_tips || 'No freezer notes for this custom recipe.',
+                notes: r.notes || ''
             };
         });
         return out;

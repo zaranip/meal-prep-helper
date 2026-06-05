@@ -67,6 +67,52 @@ function find(
   return nutAmount(matches[0]);
 }
 
+// ---- NYT Cooking import helpers (schema.org/Recipe JSON-LD) -----------------
+function decodeEntities(s: string): string {
+  return String(s ?? "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#0*39;|&#x0*27;|&apos;/gi, "'")
+    .replace(/&nbsp;/g, " ").replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(Number(n)));
+}
+function asText(x: any): string {
+  return decodeEntities(typeof x === "string" ? x : (x?.text ?? x?.name ?? "")).replace(/\s+/g, " ").trim();
+}
+// Find the first Recipe node in a JSON-LD value (object, array, or {@graph:[…]}).
+function findRecipeNode(node: any): any {
+  if (!node) return null;
+  if (Array.isArray(node)) { for (const n of node) { const r = findRecipeNode(n); if (r) return r; } return null; }
+  if (typeof node === "object") {
+    const t = node["@type"];
+    if (t === "Recipe" || (Array.isArray(t) && t.includes("Recipe"))) return node;
+    if (node["@graph"]) return findRecipeNode(node["@graph"]);
+  }
+  return null;
+}
+function extractInstructions(ri: any): string[] {
+  const out: string[] = [];
+  const push = (x: any) => { const t = asText(x); if (t) out.push(t); };
+  if (typeof ri === "string") return ri.split(/\r?\n/).map((s) => asText(s)).filter(Boolean);
+  if (Array.isArray(ri)) {
+    for (const step of ri) {
+      if (step && step["@type"] === "HowToSection" && Array.isArray(step.itemListElement)) {
+        for (const s of step.itemListElement) push(s);
+      } else push(step);
+    }
+  }
+  return out;
+}
+function parseServings(y: any): number | null {
+  if (y == null) return null;
+  const m = (Array.isArray(y) ? y.join(" ") : String(y)).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function nutritionFrom(n: any): any {
+  if (!n || typeof n !== "object") return null;
+  const numOf = (v: any) => { if (v == null) return null; const m = String(v).match(/[\d.]+/); return m ? Number(m[0]) : null; };
+  const out = { calories: numOf(n.calories), protein: numOf(n.proteinContent), fat: numOf(n.fatContent), carbs: numOf(n.carbohydrateContent), fiber: numOf(n.fiberContent) };
+  return Object.values(out).some((v) => v != null) ? out : null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -97,6 +143,52 @@ serve(async (req) => {
         brandOwner: f.brandOwner || f.brandName || null,
       }));
       return json({ results });
+    }
+
+    // ---- Action: importRecipe (NYT Cooking) -------------------------------
+    // Server-side fetch (avoids CORS + the bot-block) + schema.org/Recipe JSON-LD extract.
+    // "blocked: true" (status 200, no `error` key) tells the client to offer the paste fallback.
+    if (action === "importRecipe") {
+      const targetUrl = String(payload?.url ?? "").trim();
+      let host = "";
+      try { host = new URL(targetUrl).hostname; } catch { return json({ error: "Enter a valid recipe URL." }, 400); }
+      if (!/(^|\.)cooking\.nytimes\.com$/i.test(host)) {
+        return json({ error: "Only cooking.nytimes.com URLs are supported." }, 400);
+      }
+      let page: Response;
+      try {
+        page = await fetch(targetUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9",
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+          redirect: "follow",
+        });
+      } catch (_e) {
+        return json({ blocked: true, message: "Couldn't reach NYT Cooking from the server." });
+      }
+      if (!page.ok) {
+        return json({ blocked: true, message: `NYT Cooking returned ${page.status}${page.status === 403 ? " (blocked the request)" : ""}.` });
+      }
+      const html = await page.text();
+      const blocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+      let recipe: any = null;
+      for (const b of blocks) {
+        try { recipe = findRecipeNode(JSON.parse(b[1].trim())); if (recipe) break; } catch { /* skip malformed block */ }
+      }
+      if (!recipe) {
+        return json({ blocked: true, message: "No recipe data found on that page (it may be gated). Use the paste option." });
+      }
+      const ingredients = (recipe.recipeIngredient ?? recipe.ingredients ?? []).map(asText).filter(Boolean);
+      return json({
+        title: asText(recipe.name),
+        yieldServings: parseServings(recipe.recipeYield),
+        ingredients,
+        steps: extractInstructions(recipe.recipeInstructions),
+        nutritionPerServing: nutritionFrom(recipe.nutrition),
+        sourceUrl: targetUrl,
+      });
     }
 
     // ---- Action: fetchNutrients -------------------------------------------
