@@ -218,6 +218,51 @@ function updateMealDropdownLabels(days) {
             const want = (typeof activeWeek !== 'undefined') ? String(activeWeek) : 'custom';
             sel.value = (want && sel.querySelector(`option[value="${want}"]`)) ? want : 'custom';
         }
+        // Save the CURRENT mix-and-match selections as a brand-new week template (week_plans).
+        // Requires sign-in (RLS); shows an inline sign-in if signed out (shared session).
+        function setAddWeekStatus(msg, ok) {
+            const el = document.getElementById('add-week-status');
+            if (el) { el.textContent = msg || ''; el.className = 'text-xs font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent'); }
+        }
+        function showAddWeekAuth() {
+            const el = document.getElementById('add-week-auth');
+            const sb = window.supabaseClient;
+            if (!el || !sb || !sb.auth) return;
+            el.classList.remove('hidden');
+            el.innerHTML =
+                '<input id="aw-email" type="email" placeholder="email" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-40">' +
+                '<input id="aw-pass" type="password" placeholder="password" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-32">' +
+                '<button id="aw-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
+                '<span id="aw-msg" class="text-amberAccent"></span>';
+            document.getElementById('aw-signin').addEventListener('click', async function () {
+                const r = await sb.auth.signInWithPassword({ email: document.getElementById('aw-email').value.trim(), password: document.getElementById('aw-pass').value });
+                if (r.error) { document.getElementById('aw-msg').textContent = r.error.message; return; }
+                el.classList.add('hidden');
+                addCurrentAsWeek(); // retry now that the (shared) session is established
+            });
+        }
+        async function addCurrentAsWeek() {
+            const sb = window.supabaseClient;
+            if (!sb) { setAddWeekStatus('Backend unavailable — can’t save.', false); return; }
+            let session = null;
+            try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
+            if (!session) { setAddWeekStatus('Sign in to save a week plan.', false); showAddWeekAuth(); return; }
+            let n = 1; while (weeksPlan[String(n)]) n++;     // next free week number
+            const w = String(n);
+            const row = {
+                week: n, breakfast: customSelections.breakfast, lunch: customSelections.lunch,
+                dinner: customSelections.dinner, dessert: customSelections.dessert, snack: customSelections.snack || 'none'
+            };
+            setAddWeekStatus('Saving…', true);
+            const res = await sb.from('week_plans').insert([row]);
+            if (res.error) { setAddWeekStatus(res.error.message, false); return; }
+            weeksPlan[w] = { breakfast: row.breakfast, lunch: row.lunch, dinner: row.dinner, dessert: row.dessert, snack: row.snack };
+            activeWeek = w;                                  // the current mix IS this new week now
+            persistState();
+            populateWeekSelector();                          // rebuild + select the new week
+            setAddWeekStatus('Saved as Week ' + w + '. It’s in “Load Template” and the Calendar manager.', true);
+        }
+
         // Copy a week template's slots into the live selections. Used on load AND when picking a week
         // from the selector, so newly-added slots (e.g. snack) populate the same way as the rest.
         function applyWeekToSelections(w) {
@@ -1387,6 +1432,9 @@ function updateMealDropdownLabels(days) {
             persistState();
             renderWeeklyDashboard();
         });
+
+        // "Add as new week plan" — save the current mix-and-match as a new week template.
+        onEl('add-week-btn', 'click', addCurrentAsWeek);
 
         // Calorie goal lives in the shared header (every page): rescale + re-render this page.
         onEl('calorie-goal', 'input', (e) => {

@@ -494,6 +494,24 @@ async function testCustomSave() {
     return ok;
 }
 
+// "Add as new week plan" (dashboard): the button exists and, signed out (mock session null),
+// clicking it surfaces the inline sign-in (the actual week_plans insert is live-verify).
+async function testAddWeek() {
+    const b = await bootDOM('index.html');
+    const w = b.w, d = w.document;
+    await new Promise((r) => w.setTimeout(r, 20));
+    const btn = d.getElementById('add-week-btn');
+    const hasBtn = !!btn;
+    if (btn) btn.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 20));
+    const promptShown = !d.getElementById('add-week-auth').classList.contains('hidden') &&
+        /sign in/i.test(d.getElementById('add-week-status').textContent);
+    b.dom.window.close();
+    const ok = hasBtn && promptShown;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'add-week   (btn=' + hasBtn + ', signin-prompt=' + promptShown + ')');
+    return ok;
+}
+
 // State timestamp gate: a stale remote app_settings row must NOT clobber a newer local value
 // (this is what made every dashboard click navigate to the last-saved recipe). A newer remote IS
 // adopted (cross-device sync still works).
@@ -584,6 +602,7 @@ async function testSnackSlot() {
     if (!(await testSnackInLibrary())) failed = true;
     if (!(await testDeepDive())) failed = true;
     if (!(await testCustomSave())) failed = true;
+    if (!(await testAddWeek())) failed = true;
     if (!(await testStateTimestamp())) failed = true;
     if (!(await testWeekSnackOnLoad())) failed = true;
     if (!(await testFreezerNotes())) failed = true;
