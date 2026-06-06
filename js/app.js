@@ -77,8 +77,11 @@ function goalFactor() { return (calorieGoal > 0 ? calorieGoal : BASE_CALORIE_GOA
 function goalScaled(rec) {
     const f = goalFactor();
     if (!rec || f === 1) return rec;
+    // Keep full precision here; every consumer (setScalerMacros, dashboard, dropdowns, week
+    // summary) rounds at DISPLAY. Rounding per-serving here and then multiplying by the prep/scale
+    // factor compounded the error, so a 1-ingredient recipe's total disagreed with its per-item.
     const nb = {};
-    for (const k in rec.baseMacros) nb[k] = (k === 'cal') ? Math.round(rec.baseMacros[k] * f) : Math.round(rec.baseMacros[k] * f * 10) / 10;
+    for (const k in rec.baseMacros) nb[k] = rec.baseMacros[k] * f;
     const ni = rec.ingredients.map(i => Object.assign({}, i, { amount: i.amount * f }));
     return Object.assign({}, rec, { baseMacros: nb, ingredients: ni });
 }
@@ -127,7 +130,7 @@ function dashMacros(recipe, days) {
 // Refresh the meal-selector dropdown kcal labels to the current per-serving calories
 // (reflects the calorie goal + whole-units rounding). Preserves each option's display name.
 function updateMealDropdownLabels(days) {
-    ['breakfast-mix', 'lunch-mix', 'dinner-mix', 'dessert-mix'].forEach(id => {
+    ['breakfast-mix', 'lunch-mix', 'dinner-mix', 'dessert-mix', 'snack-mix'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel || !sel.options) return;
         Array.from(sel.options).forEach(opt => {
@@ -154,8 +157,8 @@ function updateMealDropdownLabels(days) {
         // Drop any persisted meal/recipe selections that point at a recipe that no longer
         // exists (e.g. a deleted custom recipe), so renders never hit `undefined`.
         function sanitizeSelections() {
-            const def = (typeof STATE_DEFAULTS !== 'undefined') ? STATE_DEFAULTS.customSelections : { breakfast: 'bagel', lunch: 'vegStirfry', dinner: 'tofuStirfry', dessert: 'blondies' };
-            ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(r => {
+            const def = (typeof STATE_DEFAULTS !== 'undefined') ? STATE_DEFAULTS.customSelections : { breakfast: 'bagel', lunch: 'vegStirfry', dinner: 'tofuStirfry', dessert: 'blondies', snack: 'none' };
+            ['breakfast', 'lunch', 'dinner', 'dessert', 'snack'].forEach(r => {
                 if (typeof customSelections !== 'undefined' && !recipes[customSelections[r]]) customSelections[r] = def[r];
             });
             if (!recipes[selectedRecipeId]) selectedRecipeId = 'bagel';
@@ -188,7 +191,7 @@ function updateMealDropdownLabels(days) {
             // values still map to their slot. breakfast/dessert/snack as before.
             const map = {
                 breakfast: ['breakfast-mix'], meal: ['lunch-mix', 'dinner-mix'],
-                lunch: ['lunch-mix'], dinner: ['dinner-mix'], dessert: ['dessert-mix'], snack: ['dessert-mix']
+                lunch: ['lunch-mix'], dinner: ['dinner-mix'], dessert: ['dessert-mix'], snack: ['snack-mix']
             };
             Object.keys(recipes).forEach(k => {
                 if (k.indexOf('sb_') !== 0) return;
@@ -209,10 +212,19 @@ function updateMealDropdownLabels(days) {
         function populateWeekSelector() {
             const sel = document.getElementById('week-selector');
             if (!sel) return;
-            const cur = sel.value;
             const opts = Object.keys(weeksPlan).sort((a, b) => (+a) - (+b)).map(w => `<option value="${w}">Week ${w}</option>`).join('');
             sel.innerHTML = opts + '<option value="custom">Custom Mix &amp; Match</option>';
-            if (cur && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+            // The selector reflects activeWeek (the source of truth), so it stays in sync on load.
+            const want = (typeof activeWeek !== 'undefined') ? String(activeWeek) : 'custom';
+            sel.value = (want && sel.querySelector(`option[value="${want}"]`)) ? want : 'custom';
+        }
+        // Copy a week template's slots into the live selections. Used on load AND when picking a week
+        // from the selector, so newly-added slots (e.g. snack) populate the same way as the rest.
+        function applyWeekToSelections(w) {
+            const preset = weeksPlan[w];
+            if (!preset) return false;
+            ['breakfast', 'lunch', 'dinner', 'dessert', 'snack'].forEach(r => { customSelections[r] = preset[r] || 'none'; });
+            return true;
         }
 
         // TAB 1: WEEKLY DASHBOARD
@@ -222,22 +234,26 @@ function updateMealDropdownLabels(days) {
 
             ensureCustomDropdownOptions();
             populateWeekSelector();
+            // Reflect the current selections into the dropdowns AFTER custom (sb_) options are added,
+            // so a custom snack/meal shows as selected instead of falling back to the first option.
+            ['breakfast', 'lunch', 'dinner', 'dessert', 'snack'].forEach(r => {
+                const s = document.getElementById(r + '-mix'); if (s && customSelections[r]) s.value = customSelections[r];
+            });
             const dayDaysInput = document.getElementById('dashboard-days');
             if (dayDaysInput && document.activeElement !== dayDaysInput) dayDaysInput.value = prepDays;
             const dayDaysNum = prepDays;
             document.getElementById('week-sum-title').innerText = `Weekly Cumulative Plan (${dayDaysNum} Days)` + (amountMode === 'whole' ? ' — Whole Units' : '');
 
-            let dayCal = snacksBaseline.cal;
-            let dayProt = snacksBaseline.prot;
-            let dayFat = snacksBaseline.fat;
-            let dayFib = snacksBaseline.fib;
-            let dayCarb = snacksBaseline.carb;
+            // Daily total is the sum of the selected meals (no fixed carrot baseline — the snack
+            // is now its own selectable slot).
+            let dayCal = 0, dayProt = 0, dayFat = 0, dayFib = 0, dayCarb = 0;
 
             const activeSelections = [
                 { role: 'Breakfast', key: customSelections.breakfast },
                 { role: 'Meal', key: customSelections.lunch },
                 { role: 'Meal', key: customSelections.dinner },
-                { role: 'Snack/Dessert', key: customSelections.dessert }
+                { role: 'Snack', key: customSelections.snack },
+                { role: 'Dessert', key: customSelections.dessert }
             ];
 
             activeSelections.forEach(m => {
@@ -264,7 +280,7 @@ function updateMealDropdownLabels(days) {
                         <div class="text-center"><span class="block text-[10px] text-stoneNeutral-700 font-bold">FIB</span><span class="font-mono font-bold text-skyAccent">${Math.round(mm.fib * 10) / 10}g</span></div>
                     </div>
                 `;
-                card.addEventListener('click', () => goToRecipe(m.key));
+                if (m.key && m.key !== 'none') card.addEventListener('click', () => goToRecipe(m.key));
                 container.appendChild(card);
             });
 
@@ -322,9 +338,10 @@ function updateMealDropdownLabels(days) {
             const valSnacksIcon = document.getElementById('val-snacks-icon');
             const valSnacksText = document.getElementById('val-snacks-text');
             const valSnacksDesc = document.getElementById('val-snacks-desc');
-            const bfastCal = dashMacros(baseRecipe(customSelections.breakfast), dayDaysNum).cal;
+            // Check the snack + dessert macros directly (the two small-item slots).
+            const snackCal = dashMacros(baseRecipe(customSelections.snack), dayDaysNum).cal;
             const dessertCal = dashMacros(baseRecipe(customSelections.dessert), dayDaysNum).cal;
-            const snackGroupCal = bfastCal + dessertCal + snacksBaseline.cal;
+            const snackGroupCal = snackCal + dessertCal;
             if (snackGroupCal <= 400) {
                 valSnacksIcon.innerHTML = '&#10003;';
                 valSnacksIcon.className = 'p-2 rounded-lg bg-green-50 text-green-700 font-bold text-lg';
@@ -353,12 +370,10 @@ function updateMealDropdownLabels(days) {
 
             activeSelections.forEach(m => {
                 const cal = Math.round(dashMacros(baseRecipe(m.key), days).cal);
+                if (cal <= 0) return; // skip empty slots (e.g. no snack selected)
                 labels.push(`${m.role} (${cal} kcal)`);
                 calorieValues.push(cal);
             });
-
-            labels.push(`Baseline Snacks (${snacksBaseline.cal} kcal)`);
-            calorieValues.push(snacksBaseline.cal);
 
             chartInstance = new Chart(ctx, {
                 type: 'pie',
@@ -504,9 +519,68 @@ function updateMealDropdownLabels(days) {
                 applyComputedMacros(id);
             });
         }
+        const CUSTOM_DESC_PLACEHOLDER = 'Custom recipe — USDA estimates. Confirm against packages.';
+        // Persist a custom (sb_) recipe's full edits to Supabase: title, description, steps,
+        // ingredients (amounts/names), freezer tips, notes. meal_type & base_servings are left as
+        // set in the Add Recipe tab. Per-serving editor amounts are converted back to stored grams
+        // (× base_servings); meals/desserts re-normalize to 700 on the next load, snacks save as-is.
+        async function saveCustomRecipe(id) {
+            const sb = window.supabaseClient;
+            const rec = recipes[id];
+            const sbId = rec && rec.sbId;
+            if (!sb || !sbId) { setEditStatus('Backend unavailable — can’t save.', false); return; }
+            let session = null;
+            try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
+            if (!session) { setEditStatus('Sign in to save (below).', false); showMetaAuth(saveRecipeEdits); return; }
+            setEditStatus('Saving…', true);
+            try {
+                const servings = Number(rec._baseServings) > 0 ? Number(rec._baseServings) : 1;
+                // 1. upsert each ingredient -> id (by USDA id when known, else insert a custom row)
+                const ids = [];
+                for (let i = 0; i < rec.ingredients.length; i++) {
+                    const ing = rec.ingredients[i], m = ing._m100 || {};
+                    const row = {
+                        name: ing.name || 'Ingredient',
+                        calories_per_100g: m.cal || 0, protein_per_100g: m.prot || 0, fat_per_100g: m.fat || 0,
+                        carbs_per_100g: m.carb || 0, fiber_per_100g: m.fib || 0,
+                        data_type: ing._dataType || 'custom', is_estimate: (ing._isEstimate != null ? ing._isEstimate : true)
+                    };
+                    let res;
+                    if (ing._fdcId != null) { row.usda_fdc_id = ing._fdcId; res = await sb.from('ingredients').upsert([row], { onConflict: 'usda_fdc_id' }).select('id').single(); }
+                    else { res = await sb.from('ingredients').insert([row]).select('id').single(); }
+                    if (res.error) throw new Error(res.error.message);
+                    ids.push(res.data.id);
+                }
+                // 2. update recipe text fields (keep meal_type/base_servings as in Add Recipe)
+                const meta = {
+                    title: rec.title || 'Untitled',
+                    description: (rec.desc && rec.desc !== CUSTOM_DESC_PLACEHOLDER) ? rec.desc : null,
+                    instructions: (rec.steps || []).map(function (s) { return String(s).trim(); }).filter(Boolean),
+                    freezer_tips: recipeFreezer(id) || null,
+                    notes: recipeNotes(id) || null
+                };
+                const u = await sb.from('recipes').update(meta).eq('id', sbId);
+                if (u.error) throw new Error(u.error.message);
+                // 3. rewrite the ingredient links (per-serving -> stored grams)
+                const del = await sb.from('recipe_ingredients').delete().eq('recipe_id', sbId);
+                if (del.error) throw new Error(del.error.message);
+                const links = rec.ingredients.map(function (ing, i) {
+                    const w = Math.round((Number(ing.amount) || 0) * servings * 100) / 100;
+                    return { recipe_id: sbId, ingredient_id: ids[i], quantity_value: w, quantity_unit: 'g', weight_in_grams: w };
+                });
+                if (links.length) { const lk = await sb.from('recipe_ingredients').insert(links); if (lk.error) throw new Error(lk.error.message); }
+                // reflect the saved state: drop drafts + reset the dirty baseline
+                delete draftNotes[id]; delete draftFreezer[id];
+                pristineRecipes[id] = deepCopyRecipe(recipes[id]);
+                setEditStatus('Saved to your recipes.', true);
+                updateEditToolbar();
+            } catch (e) {
+                setEditStatus(e.message || 'Save failed.', false);
+            }
+        }
         function saveRecipeEdits() {
             const id = selectedRecipeId;
-            if (isCustomRecipe(id)) { setEditStatus('Custom recipes: edit & save them in the Add Recipe tab.', false); return; }
+            if (isCustomRecipe(id)) { saveCustomRecipe(id); return; }
             recipeEditStore[id] = {
                 title: recipes[id].title, desc: recipes[id].desc,
                 steps: (recipes[id].steps || []).slice(),
@@ -553,7 +627,7 @@ function updateMealDropdownLabels(days) {
         }
         // Inline sign-in shown only if she tries to save a custom recipe's freezer/notes while
         // signed out. The session is shared across pages (window.supabaseClient), so usually skipped.
-        function showMetaAuth() {
+        function showMetaAuth(retry) {
             const el = document.getElementById('recipe-meta-auth');
             const sb = window.supabaseClient;
             if (!el || !sb || !sb.auth) return;
@@ -567,7 +641,7 @@ function updateMealDropdownLabels(days) {
                 const r = await sb.auth.signInWithPassword({ email: document.getElementById('rn-email').value.trim(), password: document.getElementById('rn-pass').value });
                 if (r.error) { document.getElementById('rn-msg').textContent = r.error.message; return; }
                 el.classList.add('hidden');
-                saveMeta(); // retry now that the (shared) session is established
+                (typeof retry === 'function' ? retry : saveMeta)(); // retry now that the (shared) session is established
             });
         }
         async function saveMeta() {
@@ -619,10 +693,10 @@ function updateMealDropdownLabels(days) {
             const saveBtn = document.getElementById('recipe-save-btn');
             const revertBtn = document.getElementById('recipe-revert-btn');
             if (editBtn) editBtn.innerHTML = recipeEditMode ? 'Done editing' : '&#9999;&#65039; Edit recipe';
-            if (saveBtn) { const dis = custom || !sdirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Custom recipe structure is edited in the Add Recipe tab' : ''; }
+            if (saveBtn) { const dis = !sdirty; saveBtn.disabled = dis; saveBtn.classList.toggle('opacity-40', dis); saveBtn.classList.toggle('cursor-not-allowed', dis); saveBtn.title = custom ? 'Saves your edits to your recipes' : ''; }
             if (revertBtn) { const can = sdirty || metaDirty(id) || saved; revertBtn.disabled = !can; revertBtn.classList.toggle('opacity-40', !can); revertBtn.classList.toggle('cursor-not-allowed', !can); }
-            if (sdirty) setEditStatus(custom ? 'Live preview — recipe structure saves in the Add Recipe tab (freezer tips & notes save below)' : 'Unsaved changes', false);
-            else setEditStatus(custom ? 'Custom recipe — structure is edited in the Add Recipe tab; freezer tips & notes save below' : (saved ? 'Saved edits applied' : ''), true);
+            if (sdirty) setEditStatus(custom ? 'Unsaved changes — Save writes to your recipes (meals re-size to 700 on reload)' : 'Unsaved changes', false);
+            else setEditStatus(custom ? 'Custom recipe' : (saved ? 'Saved edits applied' : ''), true);
             updateMetaToolbar();
         }
         function setScalerMacros(current, mult) {
@@ -709,10 +783,11 @@ function updateMealDropdownLabels(days) {
             const t = ((recipes[key] || {}).type || '').toLowerCase();
             if (t === 'breakfast') return 'breakfast';
             if (t === 'meal') return 'meal';
-            if (t === 'dessert' || t === 'snack') return 'dessert';
+            if (t === 'snack') return 'snack';
+            if (t === 'dessert') return 'dessert';
             return 'other';
         }
-        const LIB_CAT_ORDER = { breakfast: 0, meal: 1, dessert: 2, other: 3 };
+        const LIB_CAT_ORDER = { breakfast: 0, meal: 1, snack: 2, dessert: 3, other: 4 };
         function updateLibFilterUI() {
             document.querySelectorAll('.recipe-lib-btn').forEach(function (b) {
                 const active = b.getAttribute('data-cat') === recipeLibFilter;
@@ -732,7 +807,7 @@ function updateMealDropdownLabels(days) {
             // Filter by the chosen category, then order breakfast -> meals -> dessert. Array.sort
             // is stable, so recipes keep their existing within-category order (stock position).
             const keys = Object.keys(recipes)
-                .filter(function (k) { return recipeLibFilter === 'all' || recipeCat(k) === recipeLibFilter; })
+                .filter(function (k) { return k !== 'none' && (recipeLibFilter === 'all' || recipeCat(k) === recipeLibFilter); })
                 .sort(function (a, b) { return LIB_CAT_ORDER[recipeCat(a)] - LIB_CAT_ORDER[recipeCat(b)]; });
 
             if (!keys.length) { dir.innerHTML = '<p class="text-xs text-stoneNeutral-700 italic">No recipes in this category.</p>'; }
@@ -812,6 +887,7 @@ function updateMealDropdownLabels(days) {
             setScalerMacros(current, mult);
 
             const ingredientsContainer = document.getElementById('scaled-ingredients');
+            closeDeepDive();   // park the panel out of the list before wiping it (survives re-render)
             ingredientsContainer.innerHTML = '';
             current.ingredients.forEach(ing => {
                 const scaledAmount = ing.amount * mult;
@@ -833,7 +909,7 @@ function updateMealDropdownLabels(days) {
                     <span class="pr-2"><span class="text-stoneNeutral-800 font-medium hover:text-emeraldAccent">${ing.name}</span>${pkgHintHtml}${roundedNote}</span>
                     <span class="font-mono font-bold text-stoneNeutral-900 bg-stoneNeutral-100 px-2.5 py-1 rounded whitespace-nowrap">${displayAmount} ${ing.unit}</span>
                 `;
-                li.addEventListener('click', () => openDeepDive(ing, mult));
+                li.addEventListener('click', () => openDeepDive(ing, mult, li));
                 ingredientsContainer.appendChild(li);
             });
 
@@ -886,22 +962,38 @@ function updateMealDropdownLabels(days) {
                 <p class="text-[10px] text-stoneNeutral-700 mt-2 italic">Protein &amp; calories are exact; Brami fat/carb/fiber are estimates — confirm from the box.</p>`;
         }
 
+        // Position the deep-dive panel directly below the clicked ingredient (parked back to its
+        // home — after the <ul> — by closeDeepDive before any re-render so it isn't wiped).
+        function placeDeepDive(anchorLi) {
+            const panel = document.getElementById('ingredient-deep-dive');
+            if (panel && anchorLi && anchorLi.insertAdjacentElement) anchorLi.insertAdjacentElement('afterend', panel);
+        }
+
         // TAB 2 - SINGLE INGREDIENT IN-DEPTH DEEP DIVE MODAL
-        function openDeepDive(ingredient, multiplier) {
+        function openDeepDive(ingredient, multiplier, anchorLi) {
             const key = ingredient.name.toLowerCase().trim();
             const ingData = ingredientDB[key];
 
             const panel = document.getElementById('ingredient-deep-dive');
             if (!ingData) {
                 document.getElementById('dive-ing-name').innerText = ingredient.name;
-                document.getElementById('dive-ing-cal').innerText = '--';
-                document.getElementById('dive-ing-pro').innerText = '--';
-                document.getElementById('dive-ing-fat').innerText = '--';
-                document.getElementById('dive-ing-fib').innerText = '--';
-                document.getElementById('dive-ing-carb').innerText = '--';
+                // Custom (USDA-built) ingredients aren't in ingredientDB but carry per-100g macros
+                // in _m100; compute this item's contribution at its scaled grams.
+                const m = ingredient._m100;
+                if (m) {
+                    const f = ((Number(ingredient.amount) || 0) * multiplier) / 100; // custom items are stored in grams
+                    document.getElementById('dive-ing-cal').innerText = Math.round((m.cal || 0) * f) + ' kcal';
+                    document.getElementById('dive-ing-pro').innerText = Math.round((m.prot || 0) * f) + 'g';
+                    document.getElementById('dive-ing-fat').innerText = Math.round((m.fat || 0) * f) + 'g';
+                    document.getElementById('dive-ing-fib').innerText = Math.round((m.fib || 0) * f) + 'g';
+                    document.getElementById('dive-ing-carb').innerText = Math.round((m.carb || 0) * f) + 'g';
+                } else {
+                    ['cal', 'pro', 'fat', 'fib', 'carb'].forEach(k => { document.getElementById('dive-ing-' + k).innerText = '--'; });
+                }
                 document.getElementById('conversion-display-box').classList.add('hidden');
                 document.getElementById('dive-conversion-buttons').innerHTML = '<p class="text-[10px] text-stoneNeutral-700 col-span-5 italic">Conversions not applicable.</p>';
                 panel.classList.remove('hidden');
+                placeDeepDive(anchorLi);
                 return;
             }
 
@@ -966,10 +1058,17 @@ function updateMealDropdownLabels(days) {
             });
 
             panel.classList.remove('hidden');
+            placeDeepDive(anchorLi);
         }
 
         function closeDeepDive() {
-            document.getElementById('ingredient-deep-dive').classList.add('hidden');
+            const panel = document.getElementById('ingredient-deep-dive');
+            if (!panel) return;
+            panel.classList.add('hidden');
+            // Park it back out of the ingredient <ul> (its home, after the list) so a re-render's
+            // innerHTML = '' doesn't wipe the panel element.
+            const ul = document.getElementById('scaled-ingredients');
+            if (ul && ul.parentNode && panel.parentNode !== ul.parentNode) ul.parentNode.appendChild(panel);
         }
 
         // TAB 3: SUNDAY PLANNER
@@ -985,8 +1084,9 @@ function updateMealDropdownLabels(days) {
                 baseRecipe(customSelections.breakfast),
                 baseRecipe(customSelections.lunch),
                 baseRecipe(customSelections.dinner),
+                baseRecipe(customSelections.snack),
                 baseRecipe(customSelections.dessert)
-            ];
+            ].filter(Boolean);
 
             // Consolidated grocery items map
             const consolidated = {};
@@ -1004,18 +1104,6 @@ function updateMealDropdownLabels(days) {
                     consolidated[key].amount += ing.amount * daysNum;
                 });
             });
-
-            // Auto-append daily snacks
-            const snackKey = 'carrot stick bags';
-            if (!consolidated[snackKey]) {
-                consolidated[snackKey] = {
-                    name: 'Carrot Stick Bags (Daily Snack)',
-                    amount: 0,
-                    unit: 'bags',
-                    rawIngredient: { name: 'Carrot Stick Bags', amount: 4, unit: 'bags' }
-                };
-            }
-            consolidated[snackKey].amount += 4 * daysNum;
 
             // Render Shopping list cards
             const groceryContainer = document.getElementById('grocery-items-container');
@@ -1089,8 +1177,8 @@ function updateMealDropdownLabels(days) {
                     html: `Pour exactly <span class="bg-stoneNeutral-200 font-bold px-1.5 py-0.5 rounded text-xs text-stoneNeutral-800 hover:text-emeraldAccent cursor-pointer" onclick="viewTimelineIng('kirkland liquid egg whites', ${daysNum})">${eggWhiteWeight.toFixed(0)}g of Liquid Egg Whites</span> into a hot pan and scramble until set. Cube or crumble <span class="bg-stoneNeutral-200 font-bold px-1.5 py-0.5 rounded text-xs text-stoneNeutral-800 hover:text-emeraldAccent cursor-pointer" onclick="viewTimelineIng('extra firm tofu', ${daysNum})">${tofuWeight.toFixed(0)}g of Extra Firm Tofu</span> and integrate.`
                 },
                 {
-                    time: 'Step 5: Sunday Desserts & Baking',
-                    html: `Bake or prepare your selected sweet treats (such as Blondies or Protein Pudding) to secure your comfort dessert limit. Portion into containers alongside your daily baseline of <span class="bg-stoneNeutral-200 font-bold px-1.5 py-0.5 rounded text-xs text-stoneNeutral-800 hover:text-emeraldAccent cursor-pointer" onclick="viewTimelineIng('carrot stick bags', ${daysNum})">${(4 * daysNum).toFixed(0)} Carrot Stick Bags</span>.`
+                    time: 'Step 5: Sunday Desserts & Snacks',
+                    html: `Bake or prepare your selected sweet treats (such as Blondies or Protein Pudding) to secure your comfort dessert limit, then portion into containers${(customSelections.snack && customSelections.snack !== 'none' && recipes[customSelections.snack]) ? ` alongside your snack — <span class="bg-stoneNeutral-200 font-bold px-1.5 py-0.5 rounded text-xs text-stoneNeutral-800 hover:text-emeraldAccent cursor-pointer" onclick="goToRecipe('${customSelections.snack}')">${recipes[customSelections.snack].title}</span>` : ''}.`
                 }
             ];
 
@@ -1111,8 +1199,9 @@ function updateMealDropdownLabels(days) {
                 baseRecipe(customSelections.breakfast),
                 baseRecipe(customSelections.lunch),
                 baseRecipe(customSelections.dinner),
+                baseRecipe(customSelections.snack),
                 baseRecipe(customSelections.dessert)
-            ];
+            ].filter(Boolean);
             let total = 0;
             activeRecipes.forEach(rec => {
                 rec.ingredients.forEach(ing => {
@@ -1268,6 +1357,7 @@ function updateMealDropdownLabels(days) {
         function bindMealSelect(id, role) {
             onEl(id, 'change', (e) => {
                 customSelections[role] = e.target.value;
+                activeWeek = 'custom';   // a manual pick = custom mix (so reload won't re-apply a template)
                 const ws = document.getElementById('week-selector'); if (ws) ws.value = 'custom';
                 persistState();
                 renderWeeklyDashboard();
@@ -1277,17 +1367,16 @@ function updateMealDropdownLabels(days) {
         bindMealSelect('lunch-mix', 'lunch');
         bindMealSelect('dinner-mix', 'dinner');
         bindMealSelect('dessert-mix', 'dessert');
+        bindMealSelect('snack-mix', 'snack');
 
         // Preset week templates (dashboard page)
         onEl('week-selector', 'change', (e) => {
             const val = e.target.value;
-            if (val === 'custom') return;
-            const preset = weeksPlan[val];
-            if (!preset) return;
+            if (val === 'custom') { activeWeek = 'custom'; persistState(); return; }
+            if (!applyWeekToSelections(val)) return;
             activeWeek = String(val);
-            ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(r => {
-                customSelections[r] = preset[r];
-                const s = document.getElementById(r + '-mix'); if (s) s.value = preset[r];
+            ['breakfast', 'lunch', 'dinner', 'dessert', 'snack'].forEach(r => {
+                const s = document.getElementById(r + '-mix'); if (s) s.value = customSelections[r];
             });
             persistState();
             renderWeeklyDashboard();
@@ -1406,14 +1495,14 @@ function updateMealDropdownLabels(days) {
 
         // Init — wait for the Supabase data AND the persisted state, then render THIS page.
         Promise.all([window.DATA_READY || Promise.resolve(), window.STATE_READY || Promise.resolve()]).then(() => {
+            // If we're on a saved week (not "custom"), apply that template to the live selections so
+            // EVERY page reflects it — including slots added after the state was last saved (e.g. snack).
+            // 'custom' or an unknown week falls through to the persisted selections.
+            if (typeof activeWeek !== 'undefined' && activeWeek !== 'custom' && typeof weeksPlan !== 'undefined' && weeksPlan[activeWeek]) {
+                applyWeekToSelections(activeWeek);
+            }
             sanitizeSelections();          // drop selections pointing at missing recipes
             initRecipeEdits();             // snapshot originals + apply saved recipe edits
             syncAmountToggleUI();          // reflect persisted units mode in the header toggle
-            // Dashboard: reflect persisted meal selections in the selects (if present here).
-            if (document.getElementById('breakfast-mix')) {
-                ['breakfast', 'lunch', 'dinner', 'dessert'].forEach(r => {
-                    const s = document.getElementById(r + '-mix'); if (s && customSelections[r]) s.value = customSelections[r];
-                });
-            }
-            updateTabs();                  // render whichever single page this is
+            updateTabs();                  // render this page (dashboard reflects selections post-options)
         }).catch((e) => console.error('Page init failed:', e));

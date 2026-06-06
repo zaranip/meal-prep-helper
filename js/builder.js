@@ -304,6 +304,7 @@
             // 2. recipe metadata
             var meta = {
                 title: title, meal_type: $('b-meal-type').value,
+                description: ($('b-description') ? $('b-description').value.trim() : '') || null,
                 base_servings: parseFloat($('b-base-servings').value) || 1,
                 freezer_tips: $('b-freezer').value.trim() || null,
                 notes: ($('b-notes') ? $('b-notes').value.trim() : '') || null,
@@ -341,12 +342,24 @@
     function resetForm() {
         editingId = null; draft = [];
         $('b-title').value = ''; $('b-instructions').value = ''; $('b-freezer').value = '';
+        if ($('b-description')) $('b-description').value = '';
         if ($('b-notes')) $('b-notes').value = '';
         $('b-base-servings').value = '1'; $('b-meal-type').value = 'breakfast';
         $('builder-form-title').textContent = 'New recipe';
         $('b-save').textContent = 'Save recipe';
         $('builder-cancel-edit').classList.add('hidden');
         renderDraft();
+    }
+
+    // Open a saved custom recipe in the Recipes scaler. Reuses app.js's goToRecipe (sets the
+    // selection + persists, then navigates); falls back to setting the selection manually.
+    function openInScaler(id) {
+        if (typeof goToRecipe === 'function') { goToRecipe(id); return; }
+        try {
+            if (typeof selectedRecipeId !== 'undefined') selectedRecipeId = id;
+            if (typeof persistState === 'function') persistState();
+        } catch (e) { /* state globals unavailable — just navigate */ }
+        window.location.href = 'recipes.html';
     }
 
     // ---- saved list (edit / delete) ---------------------------------------
@@ -362,9 +375,10 @@
                 ? '<button class="b-edit text-skyAccent font-semibold hover:underline">Edit</button>' +
                   '<button class="b-delete text-amberAccent font-semibold hover:underline">Delete</button>'
                 : '<span class="text-[10px] text-stoneNeutral-700 italic">sign in to edit</span>';
-            div.innerHTML = '<span class="text-stoneNeutral-800 font-medium">' + esc(r.title) +
-                '<span class="block text-[10px] uppercase tracking-wider text-stoneNeutral-700">' + esc(r.meal_type || '') + '</span></span>' +
+            div.innerHTML = '<button class="b-open text-left text-stoneNeutral-800 font-medium hover:text-emeraldAccent" title="Open in the Recipes scaler">' + esc(r.title) +
+                '<span class="block text-[10px] uppercase tracking-wider text-stoneNeutral-700">' + esc(r.meal_type || '') + '</span></button>' +
                 '<span class="flex items-center gap-3 text-xs">' + controls + '</span>';
+            div.querySelector('.b-open').addEventListener('click', function () { openInScaler('sb_' + r.id); });
             if (signedIn) {
                 div.querySelector('.b-edit').addEventListener('click', function () { startEdit(r); });
                 div.querySelector('.b-delete').addEventListener('click', function () { remove(r); });
@@ -375,6 +389,7 @@
     function startEdit(r) {
         editingId = r.id;
         $('b-title').value = r.title || '';
+        if ($('b-description')) $('b-description').value = r.description || '';
         $('b-meal-type').value = r.meal_type || 'breakfast';
         $('b-base-servings').value = r.base_servings || 1;
         $('b-freezer').value = r.freezer_tips || '';
@@ -404,7 +419,9 @@
     }
 
     // ---- load all recipes from Supabase -----------------------------------
-    var SELECT = 'id,title,instructions,base_servings,freezer_tips,meal_type,notes,' +
+    // SELECT '*' so optional columns missing pre-migration don't 400 the recipe list (the
+    // save path still writes them; those need the column).
+    var SELECT = '*,' +
         'recipe_ingredients(quantity_value,quantity_unit,weight_in_grams,' +
         'ingredients(name,usda_fdc_id,data_type,calories_per_100g,protein_per_100g,fat_per_100g,carbs_per_100g,fiber_per_100g,package_unit,package_weight_g,is_estimate))';
 
@@ -484,6 +501,9 @@
     }
     function applyImported(data) {
         if (data.title) $('b-title').value = data.title;
+        // NYT (link) imports: set the description to the source recipe URL. Other recipes keep
+        // their own description (or the default placeholder).
+        if (data.sourceUrl && $('b-description')) $('b-description').value = data.sourceUrl;
         if (data.yieldServings) $('b-base-servings').value = data.yieldServings;
         if (data.steps && data.steps.length) $('b-instructions').value = data.steps.join('\n');
         showNutritionBanner(data.nutritionPerServing, data.yieldServings);

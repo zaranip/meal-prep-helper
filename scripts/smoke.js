@@ -59,7 +59,7 @@ function mockClient() {
 const SCRIPTS = ['js/config.js', 'js/data-reconstruct.js', 'js/data-layer.js', 'js/state.js', 'js/data.js', 'js/packaging.js', 'js/nav.js', 'js/app.js'];
 
 const PAGES = [
-    { file: 'index.html', label: 'dashboard', assert: (d) => /1800/.test(d.getElementById('sum-daily-cal').textContent) && d.getElementById('meals-list').children.length === 4 },
+    { file: 'index.html', label: 'dashboard', assert: (d) => /\d{3,4} kcal/.test(d.getElementById('sum-daily-cal').textContent) && d.getElementById('meals-list').children.length === 5 && !!d.getElementById('snack-mix') },
     { file: 'recipes.html', label: 'recipes', assert: (d) => d.getElementById('recipe-title').textContent !== '--' && d.getElementById('scaled-ingredients').children.length > 0 && !!d.getElementById('recipe-meta-save') && d.getElementById('recipe-meta-save').disabled === true && !!d.getElementById('recipe-freezer-tips') && d.getElementById('recipe-freezer-tips').value.length > 0 },
     { file: 'planner.html', label: 'planner', assert: (d) => d.getElementById('grocery-items-container').children.length > 0 && d.getElementById('timeline-container').children.length > 0 },
     { file: 'calendar.html', label: 'calendar', assert: (d) => d.getElementById('schedule-container').children.length > 0 },
@@ -158,11 +158,42 @@ async function testImport() {
     const title = d.getElementById('b-title').value;
     const steps = d.getElementById('b-instructions').value;
     const rows = d.getElementById('b-draft-list').children.length;
+    const desc = d.getElementById('b-description').value; // NYT import sets description = source link
     const opts = Array.from(d.getElementById('b-meal-type').options).map((o) => o.value);
     const mealsOk = opts.indexOf('meal') >= 0 && opts.indexOf('lunch') < 0 && opts.indexOf('dinner') < 0;
     b.dom.window.close();
-    const ok = title === 'Test Paella' && /Heat the oil/.test(steps) && rows === 3 && mealsOk;
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'nyt-import  (title="' + title + '", steps=' + /Heat/.test(steps) + ', draft rows=' + rows + ', meal-opts ok=' + mealsOk + ')');
+    const descOk = desc === 'https://cooking.nytimes.com/recipes/123-test';
+    const ok = title === 'Test Paella' && /Heat the oil/.test(steps) && rows === 3 && mealsOk && descOk;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'nyt-import  (title="' + title + '", steps=' + /Heat/.test(steps) + ', draft rows=' + rows + ', desc-link=' + descOk + ', meal-opts ok=' + mealsOk + ')');
+    return ok;
+}
+
+// Saved-recipe row in the Add Recipe tab: clicking the recipe title opens it in the Recipes
+// scaler (sets selectedRecipeId + persists, then navigates). Edit/Delete buttons stay.
+async function testOpenInScaler() {
+    const snackRow = {
+        id: 'snk5', title: 'Carrot Sticks', meal_type: 'snack', base_servings: 1, description: '', notes: '', freezer_tips: '', instructions: [],
+        recipe_ingredients: [{ weight_in_grams: 50, ingredients: { name: 'Baby Carrots', usda_fdc_id: 999005, data_type: 'Branded', calories_per_100g: 40, protein_per_100g: 1, fat_per_100g: 0, carbs_per_100g: 9, fiber_per_100g: 3, is_estimate: true } }]
+    };
+    tableData.recipes = [snackRow];
+    let ok = false, info = '';
+    try {
+        const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+        const w = b.w, d = w.document;
+        await new Promise((r) => w.setTimeout(r, 40));
+        const openBtn = d.querySelector('.b-open');
+        const hasBtn = !!openBtn && /Carrot Sticks/.test(openBtn.textContent);
+        if (openBtn) openBtn.dispatchEvent(new w.Event('click', { bubbles: true })); // navigation is a no-op in jsdom
+        await new Promise((r) => w.setTimeout(r, 20));
+        const saved = JSON.parse(w.localStorage.getItem('mealPrep.state.v1') || '{}');
+        const editStays = !!d.querySelector('.b-edit'); // signed-out mock -> no edit; check it didn't break render
+        b.dom.window.close();
+        ok = hasBtn && saved.selectedRecipeId === 'sb_snk5';
+        info = 'open-btn=' + hasBtn + ', selectedRecipeId=' + saved.selectedRecipeId;
+    } finally {
+        tableData.recipes = [];
+    }
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'open-scaler (' + info + ')');
     return ok;
 }
 
@@ -240,12 +271,13 @@ async function testOverlap() {
     return ok;
 }
 
-// Recipe Library (recipes page): category filter + ordering breakfast -> meals -> dessert.
+// Recipe Library (recipes page): category filter (incl. Snacks) + ordering breakfast -> meals
+// -> snack -> dessert.
 async function testRecipeLibrary() {
     const b = await bootDOM('recipes.html');
     const w = b.w, d = w.document;
     const cat = (el) => (el.querySelector('span:last-child') || {}).textContent.toLowerCase();
-    const order = { breakfast: 0, meal: 1, dessert: 2, snack: 2 };
+    const order = { breakfast: 0, meal: 1, snack: 2, dessert: 3 };
     const cats = () => Array.from(d.getElementById('recipe-directory').children).map(cat);
 
     const allCats = cats();
@@ -253,7 +285,8 @@ async function testRecipeLibrary() {
     let ordered = true;
     for (let i = 1; i < allCats.length; i++) if ((order[allCats[i]] ?? 9) < (order[allCats[i - 1]] ?? 9)) ordered = false;
     const firstIsBreakfast = allCats[0] === 'breakfast';
-    const lastIsDessert = order[allCats[allCats.length - 1]] === 2;
+    const lastIsDessert = allCats[allCats.length - 1] === 'dessert';
+    const hasSnackFilter = !!Array.from(d.querySelectorAll('.recipe-lib-btn')).find((x) => x.getAttribute('data-cat') === 'snack');
 
     // Filter to Breakfast -> only breakfast rows.
     const bBtn = Array.from(d.querySelectorAll('.recipe-lib-btn')).find((x) => x.getAttribute('data-cat') === 'breakfast');
@@ -263,8 +296,8 @@ async function testRecipeLibrary() {
     const btnActive = bBtn.classList.contains('bg-emeraldAccent');
     b.dom.window.close();
 
-    const ok = allCats.length > 0 && ordered && firstIsBreakfast && lastIsDessert && onlyBreakfast && btnActive;
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'recipe-lib (ordered=' + ordered + ', first=' + allCats[0] + ', last=' + allCats[allCats.length - 1] + ', breakfast-filter=' + onlyBreakfast + ', active=' + btnActive + ')');
+    const ok = allCats.length > 0 && ordered && firstIsBreakfast && lastIsDessert && hasSnackFilter && onlyBreakfast && btnActive;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'recipe-lib (ordered=' + ordered + ', first=' + allCats[0] + ', last=' + allCats[allCats.length - 1] + ', snack-filter=' + hasSnackFilter + ', breakfast-filter=' + onlyBreakfast + ', active=' + btnActive + ')');
     return ok;
 }
 
@@ -292,6 +325,197 @@ async function testFreezerNotes() {
     return ok;
 }
 
+// A custom snack recipe appears in the Recipe Library as a first-class Snack, filters under the
+// Snacks category, is selectable/scalable like meals/desserts, and keeps its real calories
+// (snacks aren't normalized to 700). Injects one custom snack into the mock, then restores.
+async function testSnackInLibrary() {
+    const snackRow = {
+        id: 'snk1', title: 'Carrot Sticks', meal_type: 'snack', base_servings: 1, notes: '', freezer_tips: '', instructions: [],
+        recipe_ingredients: [{ weight_in_grams: 50, ingredients: { name: 'Carrots', calories_per_100g: 40, protein_per_100g: 1, fat_per_100g: 0, carbs_per_100g: 9, fiber_per_100g: 3 } }]
+    };
+    tableData.recipes = [snackRow];
+    let ok = false, info = '';
+    try {
+        const b = await bootDOM('recipes.html');
+        const w = b.w, d = w.document;
+        const titleOf = (c) => (c.querySelector('span') || {}).textContent || '';
+        const catOf = (c) => ((c.querySelector('span:last-child') || {}).textContent || '').toLowerCase();
+        const rows = () => Array.from(d.getElementById('recipe-directory').children);
+
+        const inAll = rows().some((c) => /Carrot Sticks/.test(titleOf(c)));
+
+        const snackBtn = Array.from(d.querySelectorAll('.recipe-lib-btn')).find((x) => x.getAttribute('data-cat') === 'snack');
+        snackBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 10));
+        const filtered = rows();
+        const onlySnacks = filtered.length > 0 && filtered.every((c) => catOf(c) === 'snack');
+
+        filtered[0].dispatchEvent(new w.Event('click', { bubbles: true })); // select it -> workspace
+        await new Promise((r) => w.setTimeout(r, 20));
+        const fns = /Carrot Sticks/.test(d.getElementById('recipe-title').textContent) &&
+            d.getElementById('scaled-ingredients').children.length > 0 &&
+            !!d.getElementById('recipe-meta-save');
+        // At 1x the base must read 20 kcal (kept as-is, NOT normalized to 700). The grid shows
+        // macros scaled by the multiplier, so set it to 1 first.
+        const mult = d.getElementById('multiplier-input');
+        mult.value = '1'; mult.dispatchEvent(new w.Event('input', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 10));
+        const keptCal = /\b20 kcal\b/.test(d.getElementById('macro-cal').textContent);
+        b.dom.window.close();
+        ok = inAll && onlySnacks && fns && keptCal;
+        info = 'in-all=' + inAll + ', snack-filter=' + onlySnacks + ', functions=' + fns + ', kept-20kcal=' + keptCal;
+    } finally {
+        tableData.recipes = []; // restore so other tests see stock-only data
+    }
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'snack-lib  (' + info + ')');
+    return ok;
+}
+
+// Ingredient deep-dive: clicking a custom ingredient shows its per-item macros (from _m100, not
+// "--") and the panel is positioned directly below the clicked ingredient row.
+async function testDeepDive() {
+    const snackRow = {
+        id: 'snk4', title: 'Carrot Sticks', meal_type: 'snack', base_servings: 1, description: '', notes: '', freezer_tips: '', instructions: [],
+        recipe_ingredients: [{ weight_in_grams: 114, ingredients: { name: 'Baby Carrots', usda_fdc_id: 999004, data_type: 'Branded', calories_per_100g: 40, protein_per_100g: 1, fat_per_100g: 0, carbs_per_100g: 9, fiber_per_100g: 3, is_estimate: true } }]
+    };
+    tableData.recipes = [snackRow];
+    let ok = false, info = '';
+    try {
+        const b = await bootDOM('recipes.html');
+        const w = b.w, d = w.document;
+        const row = Array.from(d.getElementById('recipe-directory').children).find((c) => /Carrot Sticks/.test((c.querySelector('span') || {}).textContent || ''));
+        row.dispatchEvent(new w.Event('click', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 20));
+        const ingLi = d.getElementById('scaled-ingredients').children[0];
+        ingLi.dispatchEvent(new w.Event('click', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 10));
+        const cal = d.getElementById('dive-ing-cal').textContent;
+        const macrosShown = /kcal/.test(cal) && !/--/.test(cal);
+        const panel = d.getElementById('ingredient-deep-dive');
+        const positioned = ingLi.nextElementSibling === panel; // directly below the clicked row
+        // For a 1-ingredient recipe the per-item macro must equal the recipe total (no rounding drift).
+        const totalCal = d.getElementById('macro-cal').textContent;
+        const consistent = totalCal === cal;
+        b.dom.window.close();
+        ok = macrosShown && positioned && consistent;
+        info = 'item=' + cal.trim() + ', total=' + totalCal.trim() + ', match=' + consistent + ', below-clicked=' + positioned;
+    } finally {
+        tableData.recipes = [];
+    }
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'deep-dive  (' + info + ')');
+    return ok;
+}
+
+// Custom recipe full edit+save from the Recipes tab: editing a custom recipe's description in
+// Edit mode now ENABLES the structural Save (was hard-disabled), and saving while signed out
+// surfaces the inline sign-in (the actual Supabase write is live-verify, like notes).
+async function testCustomSave() {
+    const snackRow = {
+        id: 'snk2', title: 'Carrot Sticks', meal_type: 'snack', base_servings: 1, notes: '', freezer_tips: '', instructions: [], description: '',
+        recipe_ingredients: [{ weight_in_grams: 114, ingredients: { name: 'Baby Carrots', usda_fdc_id: 999001, data_type: 'Branded', calories_per_100g: 40, protein_per_100g: 1, fat_per_100g: 0, carbs_per_100g: 9, fiber_per_100g: 3, is_estimate: true } }]
+    };
+    tableData.recipes = [snackRow];
+    let ok = false, info = '';
+    try {
+        const b = await bootDOM('recipes.html');
+        const w = b.w, d = w.document;
+        // select the snack from the library
+        const row = Array.from(d.getElementById('recipe-directory').children).find((c) => /Carrot Sticks/.test((c.querySelector('span') || {}).textContent || ''));
+        row.dispatchEvent(new w.Event('click', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 20));
+        // enter edit mode + edit the description
+        d.getElementById('recipe-edit-btn').dispatchEvent(new w.Event('click', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 20));
+        const descInput = d.getElementById('edit-desc');
+        descInput.value = 'Baby carrot sticks';
+        descInput.dispatchEvent(new w.Event('input', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 10));
+        const saveBtn = d.getElementById('recipe-save-btn');
+        const enabled = saveBtn.disabled === false; // custom Save now enabled on a structural edit
+        // saving while signed out -> sign-in prompt
+        saveBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 30));
+        const promptShown = !d.getElementById('recipe-meta-auth').classList.contains('hidden') && /sign in/i.test(d.getElementById('recipe-edit-status').textContent);
+        b.dom.window.close();
+        ok = enabled && promptShown;
+        info = 'save-enabled=' + enabled + ', signin-prompt=' + promptShown;
+    } finally {
+        tableData.recipes = [];
+    }
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'custom-save (' + info + ')');
+    return ok;
+}
+
+// State timestamp gate: a stale remote app_settings row must NOT clobber a newer local value
+// (this is what made every dashboard click navigate to the last-saved recipe). A newer remote IS
+// adopted (cross-device sync still works).
+async function testStateTimestamp() {
+    let keptLocal = false, adoptedRemote = false;
+    try {
+        tableData.app_settings = [{ data: { selectedRecipeId: 'pancakes', _ts: 1 } }];         // stale remote
+        const a = await bootDOM('recipes.html', [], JSON.stringify({ selectedRecipeId: 'bagel', _ts: 9e15 }));
+        keptLocal = /"selectedRecipeId":"bagel"/.test(a.w.localStorage.getItem('mealPrep.state.v1'));
+        a.dom.window.close();
+
+        tableData.app_settings = [{ data: { selectedRecipeId: 'pancakes', _ts: 9e15 } }];       // newer remote
+        const b = await bootDOM('recipes.html', [], JSON.stringify({ selectedRecipeId: 'bagel', _ts: 1 }));
+        adoptedRemote = /"selectedRecipeId":"pancakes"/.test(b.w.localStorage.getItem('mealPrep.state.v1'));
+        b.dom.window.close();
+    } finally {
+        tableData.app_settings = [];
+    }
+    const ok = keptLocal && adoptedRemote;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'state-ts   (fresh-local-kept=' + keptLocal + ', newer-remote-adopted=' + adoptedRemote + ')');
+    return ok;
+}
+
+// Snack on first load: a week template whose snack is a custom (sb_) recipe shows that snack in
+// the dropdown AND the day card on the very first render (was defaulting to None due to (a) the
+// template not being applied on load and (b) reflecting the dropdown before its option existed).
+async function testWeekSnackOnLoad() {
+    const snackRow = {
+        id: 'snk3', title: 'Carrot Sticks', meal_type: 'snack', base_servings: 1, description: '', notes: '', freezer_tips: '', instructions: [],
+        recipe_ingredients: [{ weight_in_grams: 114, ingredients: { name: 'Baby Carrots', usda_fdc_id: 999003, data_type: 'Branded', calories_per_100g: 40, protein_per_100g: 1, fat_per_100g: 0, carbs_per_100g: 9, fiber_per_100g: 3, is_estimate: true } }]
+    };
+    const origWeeks = tableData.week_plans;
+    let ok = false, info = '';
+    try {
+        tableData.recipes = [snackRow];
+        tableData.week_plans = (origWeeks || []).map((wk) => (wk.week === 1 ? Object.assign({}, wk, { snack: 'sb_snk3' }) : wk));
+        // Stale persisted state: on week 1, customSelections has no snack (saved before snacks existed).
+        const seed = JSON.stringify({ activeWeek: '1', _ts: 5, customSelections: { breakfast: 'bagel', lunch: 'vegStirfry', dinner: 'tofuStirfry', dessert: 'blondies' } });
+        const b = await bootDOM('index.html', [], seed);
+        const w = b.w, d = w.document;
+        const snackVal = d.getElementById('snack-mix').value;
+        const cardShows = /Carrot Sticks/.test(d.getElementById('meals-list').textContent);
+        b.dom.window.close();
+        ok = snackVal === 'sb_snk3' && cardShows;
+        info = 'snack-mix=' + snackVal + ', card-shows-carrots=' + cardShows;
+    } finally {
+        tableData.recipes = []; tableData.week_plans = origWeeks;
+    }
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'week-snack-load (' + info + ')');
+    return ok;
+}
+
+// Snack slot (dashboard): a 5th selectable Snack slot replaces the fixed carrot baseline; the
+// bottom "Snacks" check totals snack + dessert directly. Default: snack='none' (0 kcal).
+async function testSnackSlot() {
+    const b = await bootDOM('index.html');
+    const w = b.w, d = w.document;
+    const snackSel = d.getElementById('snack-mix');
+    const hasNone = !!snackSel && Array.from(snackSel.options).some((o) => o.value === 'none');
+    const cards = d.getElementById('meals-list').children.length;
+    const daily = d.getElementById('sum-daily-cal').textContent;
+    const snacksDesc = d.getElementById('val-snacks-desc').textContent;
+    const roles = Array.from(d.getElementById('meals-list').children).map((c) => (c.querySelector('span') || {}).textContent);
+    b.dom.window.close();
+    // No carrot baseline + snack 'none' -> daily = 205+765+662+88 = 1720; snacks check = 0 + dessert 88.
+    const ok = hasNone && cards === 5 && /1720/.test(daily) && /88 kcal/.test(snacksDesc) && roles.indexOf('Snack') >= 0;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'snack-slot (none-opt=' + hasNone + ', cards=' + cards + ', daily=' + daily.trim() + ', snacks="' + snacksDesc.trim() + '")');
+    return ok;
+}
+
 (async function () {
     let failed = false;
     for (const page of PAGES) {
@@ -303,11 +527,18 @@ async function testFreezerNotes() {
     }
     if (!(await testStateLink())) failed = true;
     if (!(await testImport())) failed = true;
+    if (!(await testOpenInScaler())) failed = true;
     if (!(await testQuickAdd())) failed = true;
     if (!(await testWeekEditor())) failed = true;
     if (!(await testOverlap())) failed = true;
     if (!(await testRecipeLibrary())) failed = true;
+    if (!(await testSnackInLibrary())) failed = true;
+    if (!(await testDeepDive())) failed = true;
+    if (!(await testCustomSave())) failed = true;
+    if (!(await testStateTimestamp())) failed = true;
+    if (!(await testWeekSnackOnLoad())) failed = true;
     if (!(await testFreezerNotes())) failed = true;
-    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap + recipe-library + freezer/notes (mocked backend).');
+    if (!(await testSnackSlot())) failed = true;
+    console.log(failed ? '\nSMOKE TEST FAILED.' : '\nAll pages render + state links + NYT import + quick-add + week-editor + overlap + recipe-library + freezer/notes + snack-slot (mocked backend).');
     process.exitCode = failed ? 1 : 0;
 })();

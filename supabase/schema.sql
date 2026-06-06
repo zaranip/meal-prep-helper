@@ -38,10 +38,12 @@ create table if not exists ingredients (
 create table if not exists recipes (
     id             uuid primary key default gen_random_uuid(),
     title          text not null,
+    description    text,                            -- short blurb (see supabase/migrate_description.sql for existing DBs)
     instructions   text[] not null default '{}',   -- step-by-step array
     base_servings  numeric(6,2) not null default 1.00,
     freezer_tips   text,
     meal_type      text check (meal_type in ('breakfast','meal','dessert','snack')),
+    notes          text,                            -- tweaks/substitutions (see supabase/migrate_notes.sql)
     created_at     timestamptz not null default timezone('utc', now())
 );
 

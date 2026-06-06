@@ -36,6 +36,14 @@ chk('over-target rice grams', riceC.amount, 0);
 const D = build('d', 4, [ing('Stuff', 800, 100)]);
 chk('servings + normalize cal', D.baseMacros.cal, 700);
 
+// D2) SNACKS are NOT normalized — a 20-kcal carrot snack stays 20 kcal (per serving), not 700.
+function buildSnack(id, servings, ingredients) { return customRecipesToApp([{ id: id, base_servings: servings, meal_type: 'snack', recipe_ingredients: ingredients }])['sb_' + id]; }
+const S = buildSnack('s', 1, [ing('Carrot Sticks', 50, 40)]); // 50 g @ 40 kcal/100g = 20 kcal
+chk('snack kept as-is (cal)', S.baseMacros.cal, 20);
+chk('snack kept as-is (grams)', S.ingredients[0].amount, 50);
+const S2 = buildSnack('s2', 2, [ing('Carrot Sticks', 100, 40)]); // 100 g / 2 servings = 50 g/serving -> 20 kcal
+chk('snack per-serving, not scaled', S2.baseMacros.cal, 20);
+
 // E) notes round-trip: the recipes.notes column is surfaced on the app recipe (shared with the
 // Recipes-tab Notes box). Empty/missing -> ''.
 const E = customRecipesToApp([{ id: 'e', base_servings: 1, notes: 'Use half the chili oil.', recipe_ingredients: [ing('Stuff', 100, 100)] }])['sb_e'];

@@ -20,13 +20,15 @@
         { key: 'breakfast', label: 'Breakfast', cat: 'breakfast' },
         { key: 'lunch', label: 'Meal 1', cat: 'meal' },
         { key: 'dinner', label: 'Meal 2', cat: 'meal' },
+        { key: 'snack', label: 'Snack', cat: 'snack' },
         { key: 'dessert', label: 'Dessert', cat: 'dessert' }
     ];
     function catOf(k) {
         var t = (((window.recipes || {})[k] || {}).type || '').toLowerCase();
         if (t === 'breakfast') return 'breakfast';
         if (t === 'meal') return 'meal';
-        if (t === 'dessert' || t === 'snack') return 'dessert';
+        if (t === 'snack') return 'snack';
+        if (t === 'dessert') return 'dessert';
         return 'other';
     }
     function recipeOptions(cat, selected) {
@@ -68,8 +70,8 @@
     }
 
     // ---- dashboard-style macro summary per week ----------------------------
-    // Reuses the dashboard's own globals (baseRecipe / dashMacros / snacksBaseline / calorieGoal /
-    // prepDays / amountMode) so the numbers match the Dashboard exactly.
+    // Reuses the dashboard's own globals (baseRecipe / dashMacros / calorieGoal / prepDays /
+    // amountMode) so the numbers match the Dashboard exactly. Includes the Snack slot.
     function r1(v) { return Math.round(v * 10) / 10; }
     function macrosFor(key, days) {
         var R = window.recipes || {};
@@ -85,8 +87,7 @@
         var wk = weeks[w]; if (!wk) return;
         var days = (typeof prepDays !== 'undefined' && prepDays > 0) ? prepDays : 7;
         var R = window.recipes || {};
-        var sb0 = window.snacksBaseline || { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
-        var daily = { cal: sb0.cal || 0, prot: sb0.prot || 0, fat: sb0.fat || 0, fib: sb0.fib || 0, carb: sb0.carb || 0 };
+        var daily = { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
         var dishHtml = SLOTS.map(function (s) {
             var m = macrosFor(wk[s.key], days);
             ['cal', 'prot', 'fat', 'fib', 'carb'].forEach(function (k) { daily[k] += m[k] || 0; });
@@ -98,8 +99,8 @@
         }).join('');
         var weekly = {}; ['cal', 'prot', 'fat', 'fib', 'carb'].forEach(function (k) { weekly[k] = daily[k] * days; });
         el.innerHTML =
-            '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 text-center text-xs">' + dishHtml + '</div>' +
-            '<div class="text-[11px] text-stoneNeutral-800"><b>Daily</b> (incl. baseline snacks): ' + fmt(daily) + '</div>' +
+            '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2 text-center text-xs">' + dishHtml + '</div>' +
+            '<div class="text-[11px] text-stoneNeutral-800"><b>Daily</b>: ' + fmt(daily) + '</div>' +
             '<div class="text-[11px] text-stoneNeutral-800"><b>Week</b> (×' + days + ' days prep): ' + fmt(weekly) + '</div>';
     }
     function refreshAllSummaries() { Object.keys(weeks).forEach(function (w) { renderWeekSummary(w); }); }
@@ -119,7 +120,7 @@
                     '<h4 class="font-bold text-stoneNeutral-900">Week ' + esc(w) + '</h4>' +
                     (signedIn ? '<button class="week-del text-amberAccent text-xs font-semibold hover:underline" data-w="' + esc(w) + '">Delete</button>' : '') +
                 '</div>' +
-                '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
+                '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">' +
                 SLOTS.map(function (s) {
                     return '<label class="text-[11px] font-semibold text-stoneNeutral-700">' + s.label +
                         '<select class="week-slot mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-xs" data-w="' + esc(w) + '" data-slot="' + s.key + '"' + (signedIn ? '' : ' disabled') + '>' +
@@ -150,10 +151,10 @@
     async function saveWeek(w, msgEl) {
         if (!signedIn) return;
         var wk = weeks[w];
-        var row = { week: Number(w), breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert };
+        var row = { week: Number(w), breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert, snack: wk.snack || 'none' };
         var res = await sb.from('week_plans').upsert([row], { onConflict: 'week' });
         if (res.error) { if (msgEl) { msgEl.textContent = res.error.message; msgEl.className = 'week-msg text-xs text-amberAccent'; } return; }
-        window.weeksPlan[w] = { breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert };
+        window.weeksPlan[w] = { breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert, snack: wk.snack || 'none' };
         if (msgEl) { msgEl.textContent = 'Saved.'; msgEl.className = 'week-msg text-xs text-emeraldAccent'; }
     }
     async function deleteWeek(w) {
@@ -168,7 +169,7 @@
         if (!signedIn) return;
         var n = 1; while (weeks[String(n)]) n++;
         var w = String(n);
-        weeks[w] = { breakfast: firstOf('breakfast'), lunch: firstOf('meal'), dinner: firstOf('meal'), dessert: firstOf('dessert') };
+        weeks[w] = { breakfast: firstOf('breakfast'), lunch: firstOf('meal'), dinner: firstOf('meal'), dessert: firstOf('dessert'), snack: 'none' };
         renderWeeks();
     }
 
@@ -181,7 +182,7 @@
             if (!signedIn) return { ok: false, reason: 'signin' };
             var n = 1; while (weeks[String(n)]) n++;
             var w = String(n);
-            weeks[w] = { breakfast: firstOf('breakfast'), lunch: mealA, dinner: mealB, dessert: firstOf('dessert') };
+            weeks[w] = { breakfast: firstOf('breakfast'), lunch: mealA, dinner: mealB, dessert: firstOf('dessert'), snack: 'none' };
             renderWeeks();
             var el = document.getElementById('week-summary-' + w);
             if (el && el.scrollIntoView) { try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {} }

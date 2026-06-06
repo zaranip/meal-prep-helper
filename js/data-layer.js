@@ -58,6 +58,13 @@
         var built = window.reconstructFromRows(data);
         window.ingredientDB = built.ingredientDB;
         window.recipes = built.recipes;
+        // Synthetic zero-macro placeholder for an empty Snack slot ("— None —"), so every
+        // baseRecipe()/dashMacros() consumer works without per-site null guards. Excluded from
+        // the Recipe Library (renderRecipeScaler) and overlap (it has no ingredients).
+        window.recipes.none = {
+            id: 'none', title: '— None —', desc: 'No snack selected.', type: 'Snack', mealType: 'snack',
+            baseMacros: { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 }, ingredients: [], steps: [], freezerTips: '', notes: ''
+        };
         window.weeksPlan = built.weeksPlan;
         window.snacksBaseline = built.snacksBaseline;
         window.packagingDB = built.packagingDB;
@@ -66,8 +73,11 @@
         // Also load any custom (USDA-builder) recipes and merge them in, so they appear on
         // every page (Dashboard dropdowns, Recipes scaler). Best-effort — optional.
         try {
+            // SELECT '*' (not an explicit column list) so a not-yet-migrated optional column
+            // (notes / description / future) is simply absent from the row instead of 400-ing the
+            // whole query and making every custom recipe vanish. reconstruct uses `|| ''` fallbacks.
             var cr = await sb.from('recipes').select(
-                'id,title,instructions,base_servings,freezer_tips,meal_type,notes,' +
+                '*,' +
                 'recipe_ingredients(quantity_value,quantity_unit,weight_in_grams,' +
                 'ingredients(name,usda_fdc_id,data_type,calories_per_100g,protein_per_100g,fat_per_100g,carbs_per_100g,fiber_per_100g,package_unit,package_weight_g,is_estimate))'
             ).order('created_at', { ascending: true });

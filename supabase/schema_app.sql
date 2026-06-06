@@ -69,7 +69,8 @@ create table if not exists week_plans (
     breakfast text,
     lunch     text,
     dinner    text,
-    dessert   text
+    dessert   text,
+    snack     text   -- recipe key or 'none'; see supabase/migrate_snack.sql for existing DBs
 );
 
 -- Single-row app config (snacks baseline + defaults) --------------------------

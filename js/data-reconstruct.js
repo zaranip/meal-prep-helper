@@ -61,7 +61,7 @@
         (t.week_plans || []).slice()
             .sort(function (a, b) { return a.week - b.week; })
             .forEach(function (w) {
-                weeksPlan[String(w.week)] = { breakfast: w.breakfast, lunch: w.lunch, dinner: w.dinner, dessert: w.dessert };
+                weeksPlan[String(w.week)] = { breakfast: w.breakfast, lunch: w.lunch, dinner: w.dinner, dessert: w.dessert, snack: w.snack || 'none' };
             });
 
         const cfgRow = Array.isArray(t.app_config) ? t.app_config[0] : t.app_config;
@@ -97,20 +97,28 @@
                     _m100: {
                         cal: num(p.calories_per_100g) || 0, prot: num(p.protein_per_100g) || 0, fat: num(p.fat_per_100g) || 0,
                         fib: num(p.fiber_per_100g) || 0, carb: num(p.carbs_per_100g) || 0
-                    }
+                    },
+                    // Carried so the Recipes-tab editor can persist ingredient edits back to Supabase.
+                    _fdcId: (p.usda_fdc_id != null ? p.usda_fdc_id : null),
+                    _dataType: p.data_type || null,
+                    _isEstimate: (p.is_estimate != null ? !!p.is_estimate : true)
                 };
             });
 
-            // Normalize every custom recipe to a fixed TARGET kcal/serving (at the 1800 baseline;
-            // the calorie-goal scaling applies on top, unchanged). If the recipe has rice (the
-            // carb base), keep everything else as-is and size the RICE to fill the gap to TARGET;
-            // otherwise scale the whole recipe to TARGET. If the non-rice part already exceeds
-            // TARGET, rice -> 0 and the recipe shows its real (higher) calories.
+            // Normalize MEALS/BREAKFAST/DESSERT to a fixed TARGET kcal/serving (at the 1800
+            // baseline; the calorie-goal scaling applies on top, unchanged). If the recipe has
+            // rice (the carb base), keep everything else as-is and size the RICE to fill the gap
+            // to TARGET; otherwise scale the whole recipe to TARGET. If the non-rice part already
+            // exceeds TARGET, rice -> 0 and the recipe shows its real (higher) calories.
+            // SNACKS are kept AS-IS — a 20-kcal bag of carrots stays 20 kcal, not scaled to 700.
+            const isSnack = String(r.meal_type || '').toLowerCase() === 'snack';
             const TARGET = 700;
             const calOf = function (i) { return (i._m100.cal || 0) * i.amount / 100; };
             const riceIngs = ings.filter(function (i) { return RICE_NAMES[i.name.toLowerCase().trim()]; });
             const total = ings.reduce(function (s, i) { return s + calOf(i); }, 0);
-            if (riceIngs.length) {
+            if (isSnack) {
+                /* keep the per-serving amounts exactly as entered */
+            } else if (riceIngs.length) {
                 const riceCal = riceIngs.reduce(function (s, i) { return s + calOf(i); }, 0);
                 const otherCal = total - riceCal;
                 const f = riceCal > 0 ? Math.max(0, TARGET - otherCal) / riceCal : 0;
@@ -120,13 +128,17 @@
                 ings.forEach(function (i) { i.amount = i.amount * f; });
             }
 
+            // Full-precision per-serving macros (sum of the ingredients). Do NOT round here — the
+            // app rounds at display; pre-rounding then multiplying by the scale compounds error and
+            // made a 1-ingredient recipe's total disagree with its per-item deep-dive.
             const bm = { cal: 0, prot: 0, fat: 0, fib: 0, carb: 0 };
             ings.forEach(function (i) { const f = i.amount / 100, m = i._m100; bm.cal += m.cal * f; bm.prot += m.prot * f; bm.fat += m.fat * f; bm.fib += m.fib * f; bm.carb += m.carb * f; });
             out['sb_' + r.id] = {
                 id: 'sb_' + r.id, sbId: r.id, custom: true, mealType: r.meal_type || 'snack',
-                title: r.title, desc: 'Custom recipe — USDA estimates. Confirm against packages.',
+                _baseServings: servings,  // so the scaler can convert per-serving edits back to stored grams
+                title: r.title, desc: r.description || 'Custom recipe — USDA estimates. Confirm against packages.',
                 type: normMealType(cap(r.meal_type || 'Snack')),
-                baseMacros: { cal: Math.round(bm.cal), prot: r1(bm.prot), fat: r1(bm.fat), fib: r1(bm.fib), carb: r1(bm.carb) },
+                baseMacros: { cal: bm.cal, prot: bm.prot, fat: bm.fat, fib: bm.fib, carb: bm.carb },
                 ingredients: ings,
                 steps: r.instructions || [],
                 freezerTips: r.freezer_tips || 'No freezer notes for this custom recipe.',

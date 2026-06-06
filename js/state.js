@@ -12,7 +12,7 @@ const STATE_KEY = 'mealPrep.state.v1';
 const STATE_DEFAULTS = {
     calorieGoal: 1800, carbMode: 'rice', amountMode: 'exact', prepDays: 7,
     activeWeek: '1', selectedRecipeId: 'bagel',
-    customSelections: { breakfast: 'bagel', lunch: 'vegStirfry', dinner: 'tofuStirfry', dessert: 'blondies' }
+    customSelections: { breakfast: 'bagel', lunch: 'vegStirfry', dinner: 'tofuStirfry', dessert: 'blondies', snack: 'none' }
 };
 
 function _loadLocalState() {
@@ -34,7 +34,7 @@ function snapshotState() {
     return {
         calorieGoal: calorieGoal, carbMode: carbMode, amountMode: amountMode, prepDays: prepDays,
         activeWeek: activeWeek, selectedRecipeId: selectedRecipeId,
-        customSelections: { breakfast: customSelections.breakfast, lunch: customSelections.lunch, dinner: customSelections.dinner, dessert: customSelections.dessert }
+        customSelections: { breakfast: customSelections.breakfast, lunch: customSelections.lunch, dinner: customSelections.dinner, dessert: customSelections.dessert, snack: customSelections.snack }
     };
 }
 
@@ -49,27 +49,36 @@ function _applyState(s) {
     if (s.customSelections) Object.assign(customSelections, s.customSelections);
 }
 
-// Best-effort write-through: localStorage always; Supabase when a session exists.
+// Each write stamps `_ts` (ms). On load we adopt the remote row ONLY if it's at least as new as
+// the local one — so a fresh local change (e.g. clicking a recipe right before navigating, whose
+// async remote write may be aborted by the navigation) is never clobbered by a stale remote value.
+function _writeLocal(ts) {
+    try { localStorage.setItem(STATE_KEY, JSON.stringify(Object.assign({}, snapshotState(), { _ts: ts }))); } catch (e) { /* storage off */ }
+}
 function persistState() {
-    try { localStorage.setItem(STATE_KEY, JSON.stringify(snapshotState())); } catch (e) { /* storage off */ }
+    var ts = Date.now();
+    _writeLocal(ts);
     var sb = window.supabaseClient;
     if (!sb || !sb.auth) return;
     sb.auth.getSession().then(function (r) {
         if (!r || !r.data || !r.data.session) return; // only signed-in writes (RLS)
-        sb.from('app_settings').upsert([{ id: 1, data: snapshotState(), updated_at: new Date().toISOString() }], { onConflict: 'id' })
+        sb.from('app_settings').upsert([{ id: 1, data: Object.assign({}, snapshotState(), { _ts: ts }), updated_at: new Date().toISOString() }], { onConflict: 'id' })
             .then(function () {}, function () {}); // ignore errors — localStorage already holds it
     }, function () {});
 }
 
-// On load, adopt the remote row if present (cross-device source of truth), else keep local.
+// On load, adopt the remote row if present AND not older than local (cross-device source of truth),
+// else keep local. The timestamp gate prevents a stale remote from overwriting a newer local click.
 window.STATE_READY = (async function () {
     var sb = window.supabaseClient;
     if (!sb) return snapshotState();
     try {
         var res = await sb.from('app_settings').select('data').eq('id', 1).maybeSingle();
-        if (res && res.data && res.data.data) {
-            _applyState(res.data.data);
-            try { localStorage.setItem(STATE_KEY, JSON.stringify(snapshotState())); } catch (e) {}
+        var remote = res && res.data && res.data.data;
+        if (remote) {
+            var localTs = Number(_s0 && _s0._ts) || 0;
+            var remoteTs = Number(remote._ts) || 0;
+            if (remoteTs >= localTs) { _applyState(remote); _writeLocal(remoteTs || Date.now()); }
         }
     } catch (e) { /* offline / not seeded — keep localStorage values */ }
     return snapshotState();
