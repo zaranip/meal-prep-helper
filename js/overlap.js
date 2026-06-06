@@ -119,15 +119,20 @@
         var meals = catVal === 'meal'; // pairs map cleanly to the two Meal slots only when both are meals
 
         if (focus && sets[focus]) {
-            // Focus mode: every other recipe in the category, ranked by overlap with the focus.
+            // Focus mode: other recipes ranked by overlap with the focus — top 3, "See all" to expand.
             heading = 'Recipes that share the most with <b>' + esc((R[focus] || {}).title || '') + '</b>';
             var rows = keys.filter(function (k) { return k !== focus; })
                 .map(function (k) { return { k: k, c: compare(sets[focus], sets[k]) }; })
                 .sort(function (a, b) { return b.c.count - a.c.count || b.c.pct - a.c.pct; });
-            html = rows.map(function (r) {
+            var shownRows = expanded ? rows : rows.slice(0, PREVIEW);
+            html = shownRows.map(function (r) {
                 return card('<span class="font-semibold text-stoneNeutral-900 text-sm">' + esc((R[r.k] || {}).title || '') + '</span>',
                     r.c, meals ? addFooter(focus, r.k) : '');
             }).join('');
+            if (rows.length > PREVIEW) {
+                tail = '<button id="overlap-toggle" class="mt-1 text-sm font-semibold text-skyAccent hover:underline">' +
+                    (expanded ? 'Show top ' + PREVIEW : 'See all ' + rows.length + ' recipes') + '</button>';
+            }
         } else {
             // Pair mode: overlapping pairs in the category — top 3 by default, "See all" to expand.
             heading = 'Top overlapping pairs in <b>' + esc((CATS.filter(function (x) { return x.val === catVal; })[0] || {}).label || '') + '</b>';

@@ -257,17 +257,22 @@ async function testOverlap() {
     await new Promise((r) => w.setTimeout(r, 10));
     const addMsgOk = /Sign in/.test(results().querySelector('.overlap-add-msg').textContent);
 
-    // Focus mode: rank others vs a chosen recipe.
+    // Focus mode: rank others vs a chosen recipe — ALSO collapses to top 3 with a "See all" toggle.
     const focus = d.getElementById('overlap-focus');
     focus.value = focus.options[1].value;
     focus.dispatchEvent(new w.Event('change', { bubbles: true }));
     await new Promise((r) => w.setTimeout(r, 20));
-    const focusCards = results().querySelectorAll('.bg-white').length;
-    const focusOk = focusCards > 0 && /share the most with/.test(results().textContent);
+    const focusPreview = results().querySelectorAll('.bg-white').length; // collapsed -> 3
+    const focusToggle = d.getElementById('overlap-toggle');
+    const focusToggleOk = !!focusToggle && /See all/.test(focusToggle.textContent);
+    if (focusToggle) focusToggle.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 20));
+    const focusExpanded = results().querySelectorAll('.bg-white').length;
+    const focusOk = focusPreview === 3 && focusToggleOk && focusExpanded > 3 && /share the most with/.test(results().textContent);
     b.dom.window.close();
 
     const ok = cats === 4 && focusOpts >= 3 && previewOk && expandOk && addMsgOk && focusOk;
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'overlap    (cats=' + cats + ', preview=' + previewCards + ', expanded=' + expandedCards + ', add-btn=' + hasAddBtn + ', signin-msg=' + addMsgOk + ', focus cards=' + focusCards + ')');
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'overlap    (cats=' + cats + ', preview=' + previewCards + ', expanded=' + expandedCards + ', focus-preview=' + focusPreview + ', focus-expanded=' + focusExpanded + ')');
     return ok;
 }
 
