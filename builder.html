@@ -124,6 +124,7 @@
                                 <button class="quick-add-btn bg-stoneNeutral-100 hover:bg-stoneNeutral-200 border border-stoneNeutral-300 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded" data-quick="rice">&#127834; Rice blend (white+black)</button>
                                 <button class="quick-add-btn bg-stoneNeutral-100 hover:bg-stoneNeutral-200 border border-stoneNeutral-300 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded" data-quick="egg">&#129370; Egg white carton</button>
                                 <button class="quick-add-btn bg-stoneNeutral-100 hover:bg-stoneNeutral-200 border border-stoneNeutral-300 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded" data-quick="tofu">&#129362; Tofu block</button>
+                                <button class="quick-add-btn bg-stoneNeutral-100 hover:bg-stoneNeutral-200 border border-stoneNeutral-300 text-stoneNeutral-800 text-xs font-semibold px-3 py-1.5 rounded" data-quick="butter">&#129371; Light butter (1 tbsp)</button>
                             </div>
                             <p class="text-[10px] text-stoneNeutral-700 mt-1 italic">Uses your verified macros &amp; scales by the <b>Base servings</b> above. The rice blend enables the Rice/Pasta toggle on the saved recipe.</p>
                         </div>
@@ -139,13 +140,29 @@
 
                 <!-- RIGHT: live recipe being built -->
                 <div class="space-y-6">
-                    <div class="bg-white p-5 rounded-xl border border-stoneNeutral-200 shadow-sm sticky top-24">
+                    <div class="bg-white p-5 rounded-xl border border-stoneNeutral-200 shadow-sm">
                         <h3 class="font-bold text-stoneNeutral-900 mb-2">This recipe</h3>
-                        <p class="text-[10px] text-stoneNeutral-700 mb-2 italic">Totals below are the <b>actual</b> ingredients. In your plan each serving is normalized to <b>700 kcal</b> (the rice is auto-sized to fill the gap; no-rice recipes scale to 700).</p>
+                        <p class="text-[10px] text-stoneNeutral-700 mb-2 italic">Totals below are the <b>actual</b> ingredients you entered. The <b>scaled per-serving version that gets uploaded</b> is previewed under <b>Scale</b>.</p>
                         <div class="grid grid-cols-5 gap-1.5 text-center text-xs font-mono font-bold mb-3" id="b-totals">
                             <!-- filled by JS -->
                         </div>
                         <ul id="b-draft-list" class="space-y-1 text-sm mb-3"></ul>
+
+                        <!-- Scaling: the proposed per-serving recipe that uploads to the Recipes tab -->
+                        <div class="pt-3 mb-3 border-t border-stoneNeutral-200">
+                            <label class="text-[11px] font-bold uppercase tracking-wider text-stoneNeutral-700 block mb-1.5">Scale (per serving)</label>
+                            <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                                <select id="b-scale-mode" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-xs">
+                                    <option value="auto">Auto &mdash; 700 kcal/serving</option>
+                                    <option value="custom">Custom kcal/serving</option>
+                                    <option value="asentered">Keep as entered (no scaling)</option>
+                                </select>
+                                <input id="b-scale-target" type="number" min="1" step="10" value="700" placeholder="kcal" class="hidden w-24 bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-xs">
+                            </div>
+                            <p class="text-[10px] text-stoneNeutral-700 mb-2 italic">Auto = 700 kcal/serving (snacks kept as entered). Proposed scaled recipe that will be uploaded:</p>
+                            <div id="b-scaled-preview" class="bg-stoneNeutral-50 border border-stoneNeutral-200 rounded p-2.5"></div>
+                        </div>
+
                         <button id="b-save" class="w-full bg-emeraldAccent text-white font-semibold text-sm px-5 py-2.5 rounded hover:opacity-90">Save recipe</button>
                         <p id="b-save-msg" class="text-xs mt-2 text-center"></p>
                     </div>

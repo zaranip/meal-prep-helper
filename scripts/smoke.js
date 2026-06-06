@@ -168,6 +168,37 @@ async function testImport() {
     return ok;
 }
 
+// Add Recipe scale preview: shows the proposed per-serving scaled recipe; Auto scales a meal to
+// 700, Custom to a typed kcal, Keep-as-entered leaves it, and a snack on Auto isn't scaled.
+async function testScalePreview() {
+    const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+    const w = b.w, d = w.document;
+    const previewCal = () => { const m = (d.getElementById('b-scaled-preview').textContent || '').match(/CAL(\d+)/); return m ? +m[1] : -1; };
+    const setSel = (id, v) => { const e = d.getElementById(id); e.value = v; e.dispatchEvent(new w.Event('change', { bubbles: true })); };
+    // meal type defaults to 'meal'; add light butter (50 kcal @ 14 g)
+    Array.from(d.querySelectorAll('.quick-add-btn')).find((x) => x.getAttribute('data-quick') === 'butter').dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 30));
+    const autoCal = previewCal();                          // meal + auto -> 700
+
+    setSel('b-scale-mode', 'custom');
+    const tgt = d.getElementById('b-scale-target'); tgt.value = '500'; tgt.dispatchEvent(new w.Event('input', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 10));
+    const customCal = previewCal();                        // custom 500
+
+    setSel('b-scale-mode', 'asentered');
+    await new Promise((r) => w.setTimeout(r, 10));
+    const asEnteredCal = previewCal();                     // as entered -> 50
+
+    setSel('b-meal-type', 'snack'); setSel('b-scale-mode', 'auto');
+    await new Promise((r) => w.setTimeout(r, 10));
+    const snackAutoCal = previewCal();                     // snack + auto -> 50 (unscaled)
+    b.dom.window.close();
+
+    const ok = autoCal === 700 && customCal === 500 && asEnteredCal === 50 && snackAutoCal === 50;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'scale-prev (auto=' + autoCal + ', custom=' + customCal + ', as-entered=' + asEnteredCal + ', snack-auto=' + snackAutoCal + ')');
+    return ok;
+}
+
 // Saved-recipe row in the Add Recipe tab: clicking the recipe title opens it in the Recipes
 // scaler (sets selectedRecipeId + persists, then navigates). Edit/Delete buttons stay.
 async function testOpenInScaler() {
@@ -197,7 +228,8 @@ async function testOpenInScaler() {
     return ok;
 }
 
-// Quick-add staples: rice blend adds 2 verified rows scaled by base servings (37.5/18.75 × 2).
+// Quick-add staples: rice blend adds 2 verified rows scaled by base servings (37.5/18.75 × 2);
+// light butter adds 1 row whose per-100g macros land on the label values (14 g -> 50 kcal, 6 g fat).
 async function testQuickAdd() {
     const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
     const w = b.w, d = w.document;
@@ -208,9 +240,20 @@ async function testQuickAdd() {
     const rows = d.getElementById('b-draft-list').children.length;
     const txt = d.getElementById('b-draft-list').textContent;
     const grams = Array.from(d.querySelectorAll('.b-grams')).map((x) => x.value);
+
+    // Light butter at 1× base servings: 14 g, 50 kcal, 6 g fat (verify per-100g math + row macros).
+    d.getElementById('b-base-servings').value = '1';
+    const butterBtn = Array.from(d.querySelectorAll('.quick-add-btn')).find((x) => x.getAttribute('data-quick') === 'butter');
+    butterBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 30));
+    const butterRow = Array.from(d.getElementById('b-draft-list').children).find((li) => /Light Butter/.test(li.textContent));
+    const butterTxt = butterRow ? butterRow.textContent : '';
+    const butterGrams = butterRow ? butterRow.querySelector('.b-grams').value : '';
+    const butterOk = !!butterRow && String(butterGrams) === '14' && /50 kcal/.test(butterTxt) && /6g F/.test(butterTxt);
     b.dom.window.close();
-    const ok = rows === 2 && /White Rice/.test(txt) && /Black Rice/.test(txt) && grams.indexOf('75') >= 0 && grams.indexOf('37.5') >= 0;
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'quick-add  (rice blend @ 2× servings -> ' + rows + ' rows, grams=' + JSON.stringify(grams) + ')');
+
+    const ok = rows === 2 && /White Rice/.test(txt) && /Black Rice/.test(txt) && grams.indexOf('75') >= 0 && grams.indexOf('37.5') >= 0 && butterOk;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'quick-add  (rice blend @ 2× -> ' + rows + ' rows; butter 14g/50kcal ok=' + butterOk + ')');
     return ok;
 }
 
@@ -533,6 +576,7 @@ async function testSnackSlot() {
     if (!(await testStateLink())) failed = true;
     if (!(await testImport())) failed = true;
     if (!(await testOpenInScaler())) failed = true;
+    if (!(await testScalePreview())) failed = true;
     if (!(await testQuickAdd())) failed = true;
     if (!(await testWeekEditor())) failed = true;
     if (!(await testOverlap())) failed = true;

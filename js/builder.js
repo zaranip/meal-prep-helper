@@ -256,6 +256,7 @@
     }
     function renderDraft() {
         paintTotals();
+        renderScaledPreview();
         var ul = $('b-draft-list');
         if (!draft.length) { ul.innerHTML = '<li class="text-xs text-stoneNeutral-700 italic">Search and add ingredients to build the recipe.</li>'; return; }
         ul.innerHTML = '';
@@ -274,10 +275,60 @@
                 d.grams = parseFloat(e.target.value) || 0;
                 li.querySelector('.b-row-macros').innerHTML = rowMacroHtml(d); // this ingredient's contribution
                 paintTotals();                                                // and the recipe total
+                renderScaledPreview();                                        // and the proposed upload
             });
             li.querySelector('.b-del').addEventListener('click', function () { draft.splice(idx, 1); renderDraft(); });
             ul.appendChild(li);
         });
+    }
+
+    // ---- proposed scaled recipe (per serving) — mirrors data-reconstruct.customRecipesToApp ----
+    var RICE_KEYS = { 'white rice (uncooked)': 1, 'black rice (uncooked)': 1 };
+    function scaleMode() { return $('b-scale-mode') ? $('b-scale-mode').value : 'auto'; }
+    function scaledPreview() {
+        var servings = parseFloat($('b-base-servings').value) || 1;
+        var ings = draft.map(function (d) {
+            var p = d.per || {};
+            return {
+                name: d.name, grams: (Number(d.grams) || 0) / servings,
+                per100: { cal: +p.calories || 0, prot: +p.protein || 0, fat: +p.fat || 0, carb: +p.carbs || 0, fib: +p.fiber || 0 }
+            };
+        });
+        var calOf = function (i) { return i.per100.cal * i.grams / 100; };
+        var total = ings.reduce(function (s, i) { return s + calOf(i); }, 0);
+        var mode = scaleMode(), isSnack = ($('b-meal-type') || {}).value === 'snack';
+        var doScale = false, TARGET = 700;
+        if (mode === 'custom') { var t = parseFloat($('b-scale-target').value); if (t > 0) { doScale = true; TARGET = t; } }
+        else if (mode === 'asentered') { doScale = false; }
+        else { doScale = !isSnack; TARGET = 700; } // auto
+        if (doScale && total > 0) {
+            var rice = ings.filter(function (i) { return RICE_KEYS[i.name.toLowerCase().trim()]; });
+            if (rice.length) {
+                var riceCal = rice.reduce(function (s, i) { return s + calOf(i); }, 0), otherCal = total - riceCal;
+                var f = riceCal > 0 ? Math.max(0, TARGET - otherCal) / riceCal : 0;
+                rice.forEach(function (i) { i.grams *= f; });
+            } else {
+                var f2 = TARGET / total; ings.forEach(function (i) { i.grams *= f2; });
+            }
+        }
+        var m = { cal: 0, prot: 0, fat: 0, carb: 0, fib: 0 };
+        ings.forEach(function (i) { var f = i.grams / 100, p = i.per100; m.cal += p.cal * f; m.prot += p.prot * f; m.fat += p.fat * f; m.carb += p.carb * f; m.fib += p.fib * f; });
+        return { ings: ings, macros: m };
+    }
+    function renderScaledPreview() {
+        var el = $('b-scaled-preview');
+        if (!el) return;
+        if (!draft.length) { el.innerHTML = '<p class="text-[11px] text-stoneNeutral-700 italic">Add ingredients to preview the scaled recipe.</p>'; return; }
+        var sp = scaledPreview(), m = sp.macros;
+        var ingHtml = sp.ings.map(function (i) {
+            return '<li class="flex justify-between gap-2"><span class="text-stoneNeutral-800">' + esc(i.name) + '</span>' +
+                '<span class="font-mono text-stoneNeutral-700">' + (Math.round(i.grams * 10) / 10) + ' g</span></li>';
+        }).join('');
+        el.innerHTML =
+            '<div class="grid grid-cols-5 gap-1.5 text-center text-xs font-mono font-bold mb-2">' +
+                cell('CAL', Math.round(m.cal)) + cell('PRO', r1(m.prot) + 'g') + cell('FAT', r1(m.fat) + 'g') + cell('CARB', r1(m.carb) + 'g') + cell('FIB', r1(m.fib) + 'g') +
+            '</div>' +
+            '<ul class="space-y-0.5 text-xs">' + ingHtml + '</ul>';
     }
 
     // ---- save / update -----------------------------------------------------
@@ -308,6 +359,8 @@
                 base_servings: parseFloat($('b-base-servings').value) || 1,
                 freezer_tips: $('b-freezer').value.trim() || null,
                 notes: ($('b-notes') ? $('b-notes').value.trim() : '') || null,
+                // Per-serving scale target: auto -> null, custom -> kcal (>0), keep-as-entered -> 0.
+                target_kcal: scaleMode() === 'custom' ? (parseFloat($('b-scale-target').value) || 700) : (scaleMode() === 'asentered' ? 0 : null),
                 instructions: $('b-instructions').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
             };
 
@@ -345,6 +398,8 @@
         if ($('b-description')) $('b-description').value = '';
         if ($('b-notes')) $('b-notes').value = '';
         $('b-base-servings').value = '1'; $('b-meal-type').value = 'breakfast';
+        if ($('b-scale-mode')) $('b-scale-mode').value = 'auto';
+        if ($('b-scale-target')) { $('b-scale-target').value = '700'; $('b-scale-target').classList.add('hidden'); }
         $('builder-form-title').textContent = 'New recipe';
         $('b-save').textContent = 'Save recipe';
         $('builder-cancel-edit').classList.add('hidden');
@@ -394,6 +449,12 @@
         $('b-base-servings').value = r.base_servings || 1;
         $('b-freezer').value = r.freezer_tips || '';
         if ($('b-notes')) $('b-notes').value = r.notes || '';
+        // Reflect the saved scale target: null -> auto, 0 -> keep as entered, >0 -> custom kcal.
+        if ($('b-scale-mode')) {
+            var tk = (r.target_kcal == null || r.target_kcal === '') ? null : Number(r.target_kcal);
+            $('b-scale-mode').value = (tk == null) ? 'auto' : (tk > 0 ? 'custom' : 'asentered');
+            if ($('b-scale-target')) { if (tk > 0) $('b-scale-target').value = tk; $('b-scale-target').classList.toggle('hidden', $('b-scale-mode').value !== 'custom'); }
+        }
         $('b-instructions').value = (r.instructions || []).join('\n');
         draft = (r.recipe_ingredients || []).map(function (ri) {
             var p = ri.ingredients || {};
@@ -539,7 +600,16 @@
             ]
         },
         egg: { label: 'Egg white carton', items: [{ key: 'kirkland liquid egg whites', name: 'Kirkland Liquid Egg Whites', perServing: 454 }] },
-        tofu: { label: 'Tofu block', items: [{ key: 'extra firm tofu', name: 'Extra Firm Tofu', perServing: 454 }] }
+        tofu: { label: 'Tofu block', items: [{ key: 'extra firm tofu', name: 'Extra Firm Tofu', perServing: 454 }] },
+        // Land O'Lakes Light Butter — verified from the package label: 1 tbsp (14 g) = 50 kcal,
+        // 6 g fat, 0 protein/carb/fiber. Not in the stock ingredientDB, so its per-100g macros are
+        // carried here directly (perServing is grams: 1 tbsp = 14 g).
+        butter: {
+            label: 'Light butter (1 tbsp)', items: [{
+                name: 'Light Butter', perServing: 14,
+                per100: { calories: 357.14, protein: 0, fat: 42.86, carbs: 0, fiber: 0 }
+            }]
+        }
     };
     // Convert a verified ingredientDB entry (macros per its standard unit) to per-100g.
     function verifiedPer100(key) {
@@ -555,7 +625,7 @@
         var servings = parseFloat($('b-base-servings').value) || 1;
         var added = 0, missing = [];
         q.items.forEach(function (it) {
-            var per = verifiedPer100(it.key);
+            var per = it.per100 || verifiedPer100(it.key); // item-supplied macros (e.g. light butter) or the stock DB
             if (!per) { missing.push(it.name); return; }
             draft.push({ fdcId: null, name: it.name, dataType: 'verified', verified: true, per: per, grams: Math.round(it.perServing * servings * 10) / 10 });
             added++;
@@ -582,6 +652,14 @@
         document.querySelectorAll('.quick-add-btn').forEach(function (b) {
             b.addEventListener('click', function () { quickAdd(b.getAttribute('data-quick')); });
         });
+        // Scale controls (proposed per-serving recipe preview).
+        if ($('b-scale-mode')) $('b-scale-mode').addEventListener('change', function () {
+            if ($('b-scale-target')) $('b-scale-target').classList.toggle('hidden', $('b-scale-mode').value !== 'custom');
+            renderScaledPreview();
+        });
+        if ($('b-scale-target')) $('b-scale-target').addEventListener('input', renderScaledPreview);
+        if ($('b-base-servings')) $('b-base-servings').addEventListener('input', renderScaledPreview);
+        if ($('b-meal-type')) $('b-meal-type').addEventListener('change', renderScaledPreview);
     }
 
     function showConfigWarning(msg) {

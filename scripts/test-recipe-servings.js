@@ -51,5 +51,14 @@ const Eempty = customRecipesToApp([{ id: 'f', base_servings: 1, recipe_ingredien
 if (E.notes !== 'Use half the chili oil.') { fail++; console.log('FAIL notes mapped: got ' + JSON.stringify(E.notes)); } else console.log('ok   notes mapped from recipes.notes');
 if (Eempty.notes !== '') { fail++; console.log('FAIL missing notes -> "": got ' + JSON.stringify(Eempty.notes)); } else console.log('ok   missing notes defaults to ""');
 
-console.log(fail ? '\nFAILED' : '\n700-normalization + notes OK.');
+// F) target_kcal override: a custom target scales to it; 0 = keep exactly as entered.
+function buildT(id, mealType, target, ingredients) { return customRecipesToApp([{ id: id, base_servings: 1, meal_type: mealType, target_kcal: target, recipe_ingredients: ingredients }])['sb_' + id]; }
+const F = buildT('g1', 'meal', 500, [ing('Stuff', 200, 100)]); // 200 g @ 100 -> 200 kcal, scale to 500
+chk('custom target cal', F.baseMacros.cal, 500);
+const G = buildT('g2', 'meal', 0, [ing('Stuff', 200, 100)]);   // target 0 -> keep as entered (200)
+chk('as-entered (target 0) cal', G.baseMacros.cal, 200);
+const H = buildT('g3', 'snack', 300, [ing('Stuff', 200, 100)]); // snack with explicit target DOES scale
+chk('snack custom target cal', H.baseMacros.cal, 300);
+
+console.log(fail ? '\nFAILED' : '\n700-normalization + notes + target_kcal OK.');
 process.exitCode = fail ? 1 : 0;

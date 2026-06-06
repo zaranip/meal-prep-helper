@@ -105,27 +105,31 @@
                 };
             });
 
-            // Normalize MEALS/BREAKFAST/DESSERT to a fixed TARGET kcal/serving (at the 1800
-            // baseline; the calorie-goal scaling applies on top, unchanged). If the recipe has
-            // rice (the carb base), keep everything else as-is and size the RICE to fill the gap
-            // to TARGET; otherwise scale the whole recipe to TARGET. If the non-rice part already
-            // exceeds TARGET, rice -> 0 and the recipe shows its real (higher) calories.
-            // SNACKS are kept AS-IS — a 20-kcal bag of carrots stays 20 kcal, not scaled to 700.
+            // Scale each serving to a kcal TARGET. The per-recipe `target_kcal` overrides the
+            // default: NULL/absent -> auto (700 for meals/breakfast/dessert; snacks kept as-is);
+            // 0 -> keep exactly as entered (no scaling); >0 -> scale to that kcal/serving. When
+            // scaling, if the recipe has rice (the carb base) keep everything else as entered and
+            // size the RICE to fill the gap to TARGET (rice -> 0 if the rest already exceeds it);
+            // otherwise scale the whole recipe to TARGET.
             const isSnack = String(r.meal_type || '').toLowerCase() === 'snack';
-            const TARGET = 700;
+            const tk = (r.target_kcal == null || r.target_kcal === '') ? null : Number(r.target_kcal);
+            let doScale, TARGET = 700;
+            if (tk == null) { doScale = !isSnack; }
+            else if (tk > 0) { doScale = true; TARGET = tk; }
+            else { doScale = false; } // tk === 0 -> keep as entered
             const calOf = function (i) { return (i._m100.cal || 0) * i.amount / 100; };
             const riceIngs = ings.filter(function (i) { return RICE_NAMES[i.name.toLowerCase().trim()]; });
             const total = ings.reduce(function (s, i) { return s + calOf(i); }, 0);
-            if (isSnack) {
-                /* keep the per-serving amounts exactly as entered */
-            } else if (riceIngs.length) {
-                const riceCal = riceIngs.reduce(function (s, i) { return s + calOf(i); }, 0);
-                const otherCal = total - riceCal;
-                const f = riceCal > 0 ? Math.max(0, TARGET - otherCal) / riceCal : 0;
-                riceIngs.forEach(function (i) { i.amount = i.amount * f; });
-            } else if (total > 0) {
-                const f = TARGET / total;
-                ings.forEach(function (i) { i.amount = i.amount * f; });
+            if (doScale && total > 0) {
+                if (riceIngs.length) {
+                    const riceCal = riceIngs.reduce(function (s, i) { return s + calOf(i); }, 0);
+                    const otherCal = total - riceCal;
+                    const f = riceCal > 0 ? Math.max(0, TARGET - otherCal) / riceCal : 0;
+                    riceIngs.forEach(function (i) { i.amount = i.amount * f; });
+                } else {
+                    const f = TARGET / total;
+                    ings.forEach(function (i) { i.amount = i.amount * f; });
+                }
             }
 
             // Full-precision per-serving macros (sum of the ingredients). Do NOT round here — the

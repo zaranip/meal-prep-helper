@@ -44,6 +44,7 @@ create table if not exists recipes (
     freezer_tips   text,
     meal_type      text check (meal_type in ('breakfast','meal','dessert','snack')),
     notes          text,                            -- tweaks/substitutions (see supabase/migrate_notes.sql)
+    target_kcal    numeric,                         -- per-serving scale target; NULL=auto, 0=as-entered (see supabase/migrate_target_kcal.sql)
     created_at     timestamptz not null default timezone('utc', now())
 );
 
