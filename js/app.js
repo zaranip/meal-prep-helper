@@ -2,11 +2,30 @@
    event listeners, and bootstrap. Relies on globals from data.js / packaging.js. */
 
 // ---- Carb base (rice <-> pasta) swap -------------------------------------
+// How many of a unit fit in 1 tbsp's worth (volume family is a fixed ratio: 1 tbsp = 3 tsp = 1/16 cup).
+const TBSP_PER_UNIT = { tsp: 1 / 3, teaspoon: 1 / 3, tbsp: 1, tbs: 1, tablespoon: 1, cup: 16, cups: 16 };
+// Resolve "count of `unit` per c.g grams" from a conversion table, deriving volume units (tsp/tbsp/
+// cup) from any sibling volume unit and oz from grams — so e.g. switching tbsp -> tsp still works
+// even when only `tbsp` is listed. Returns null when the unit can't be derived (e.g. 'whole').
+function resolveUnitCount(c, unit) {
+    if (c[unit] != null) return c[unit];
+    if (!c.g) return null;
+    if (unit === 'g' || unit === 'grams') return c.g;
+    if (unit === 'oz' || unit === 'ounce' || unit === 'ounces') return c.g / 28.3495; // oz per c.g grams
+    const per = TBSP_PER_UNIT[unit];
+    if (per == null) return null;
+    for (const k in TBSP_PER_UNIT) {
+        if (c[k] != null) return (c[k] * TBSP_PER_UNIT[k]) / per; // anchor on any known volume unit
+    }
+    return null;
+}
 // Convert an ingredient amount to grams via its conversion table (null if not possible).
 function ingredientGrams(name, amount, unit) {
     const c = (ingredientDB[name.toLowerCase().trim()] || {}).conversions || {};
-    if (!c.g || !c[unit]) return null;
-    return amount * (c.g / c[unit]);
+    if (!c.g) return null;
+    const cu = resolveUnitCount(c, unit);
+    if (cu == null) return null;
+    return amount * (c.g / cu);
 }
 // Macros for a gram weight of an ingredient (DB macros are per `conversions.g` grams).
 function macrosForGrams(name, grams) {
@@ -509,9 +528,13 @@ function updateMealDropdownLabels(days) {
         function computeBaseMacros(id) {
             const p = pristineRecipes[id] || recipes[id];
             const pb = p.baseMacros, pt = trackedSum(p.ingredients), ct = trackedSum(recipes[id].ingredients);
+            // Clamp to >= 0: macros can never be negative. (Defends against an ingredient going
+            // tracked -> untracked, e.g. renamed to an unknown item, which would otherwise subtract
+            // its pristine contribution without re-adding it.)
+            const nn = function (x) { return Math.max(0, x); };
             const v = {
-                cal: pb.cal - pt.cal + ct.cal, prot: pb.prot - pt.prot + ct.prot, fat: pb.fat - pt.fat + ct.fat,
-                fib: pb.fib - pt.fib + ct.fib, carb: pb.carb - pt.carb + ct.carb
+                cal: nn(pb.cal - pt.cal + ct.cal), prot: nn(pb.prot - pt.prot + ct.prot), fat: nn(pb.fat - pt.fat + ct.fat),
+                fib: nn(pb.fib - pt.fib + ct.fib), carb: nn(pb.carb - pt.carb + ct.carb)
             };
             return { cal: Math.round(v.cal), prot: Math.round(v.prot * 10) / 10, fat: Math.round(v.fat * 10) / 10, fib: Math.round(v.fib * 10) / 10, carb: Math.round(v.carb * 10) / 10 };
         }

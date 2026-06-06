@@ -319,6 +319,51 @@ async function testOverlap() {
     return ok;
 }
 
+// Unit conversion: tsp/tbsp/cup are a fixed-ratio family and oz<->g is fixed, so a unit missing
+// from an ingredient's table (e.g. olive oil has tbsp but not tsp) is still derived correctly.
+async function testUnitConvert() {
+    const b = await bootDOM('recipes.html');
+    const w = b.w;
+    const r1 = (x) => Math.round(x * 10) / 10;
+    const tbsp = w.ingredientGrams('olive oil', 1, 'tbsp');
+    const tsp = w.ingredientGrams('olive oil', 1, 'tsp');   // derived from tbsp (÷3)
+    const oz = w.ingredientGrams('olive oil', 1, 'oz');     // derived from grams (×28.35)
+    b.dom.window.close();
+    const ratioOk = tbsp > 0 && tsp > 0 && Math.abs(tbsp / tsp - 3) < 0.02;
+    const ozOk = oz > 0 && Math.abs(oz - 28.35) < 0.2;
+    const ok = ratioOk && ozOk;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'unit-conv  (tbsp=' + r1(tbsp) + 'g, tsp=' + r1(tsp) + 'g, ratio=' + (tbsp / tsp).toFixed(2) + ', oz=' + r1(oz) + 'g)');
+    return ok;
+}
+
+// Editing an ingredient's unit (tbsp -> tsp) recomputes macros from the CONVERTED amount (the oil
+// stays tracked at 1/3), instead of untracking it and subtracting its whole contribution (which
+// produced negative fat + a collapsed calorie count). Fat is also clamped non-negative.
+async function testEditUnitMacros() {
+    const b = await bootDOM('recipes.html', [], JSON.stringify({ selectedRecipeId: 'frittata', _ts: 9e15 }));
+    const w = b.w, d = w.document;
+    await new Promise((r) => w.setTimeout(r, 20));
+    d.getElementById('recipe-edit-btn').dispatchEvent(new w.Event('click', { bubbles: true })); // edit mode
+    await new Promise((r) => w.setTimeout(r, 20));
+    const rows = Array.from(d.querySelectorAll('#edit-ing-list li'));
+    const oilRow = rows.find((li) => /olive oil/i.test(((li.querySelector('.edit-ing-name') || {}).value) || ''));
+    const found = !!oilRow;
+    let cal = -1, fatNeg = true;
+    if (oilRow) {
+        const u = oilRow.querySelector('.edit-ing-unit');
+        u.value = 'tsp'; u.dispatchEvent(new w.Event('input', { bubbles: true }));
+        await new Promise((r) => w.setTimeout(r, 10));
+        cal = parseFloat(d.getElementById('macro-cal').textContent);
+        fatNeg = /-/.test(d.getElementById('macro-fat').textContent);
+    }
+    b.dom.window.close();
+    // Frittata base 153 kcal w/ 1 tbsp oil; -> tsp keeps the oil (1/3) so cal stays ~70 (NOT ~29 if
+    // fully untracked), and fat is non-negative (was -7 before the fix).
+    const ok = found && cal > 50 && !fatNeg;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'edit-unit  (oil row=' + found + ', cal=' + cal + ', fat-negative=' + fatNeg + ')');
+    return ok;
+}
+
 // Recipe Library (recipes page): category filter (incl. Snacks) + ordering breakfast -> meals
 // -> snack -> dessert.
 async function testRecipeLibrary() {
@@ -598,6 +643,8 @@ async function testSnackSlot() {
     if (!(await testQuickAdd())) failed = true;
     if (!(await testWeekEditor())) failed = true;
     if (!(await testOverlap())) failed = true;
+    if (!(await testUnitConvert())) failed = true;
+    if (!(await testEditUnitMacros())) failed = true;
     if (!(await testRecipeLibrary())) failed = true;
     if (!(await testSnackInLibrary())) failed = true;
     if (!(await testDeepDive())) failed = true;
