@@ -2,7 +2,7 @@
 
 A single-page web app for planning a week of high-protein meal prep: mix-and-match meals, track daily and weekly macros against a calorie goal, scale recipes for batch cooking, generate a consolidated shopping list with real package/carton counts, and lay out a daily eating schedule around your wake / gym / sleep times.
 
-It's a **static site** — no build step, no server required, no dependencies to install. Just open the HTML file.
+It's a **dynamic site** complete with backend set up via Supabase. 
 
 ---
 
