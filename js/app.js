@@ -243,29 +243,12 @@ function updateMealDropdownLabels(days) {
             const el = document.getElementById('add-week-status');
             if (el) { el.textContent = msg || ''; el.className = 'text-xs font-semibold ' + (ok ? 'text-emeraldAccent' : 'text-amberAccent'); }
         }
-        function showAddWeekAuth() {
-            const el = document.getElementById('add-week-auth');
-            const sb = window.supabaseClient;
-            if (!el || !sb || !sb.auth) return;
-            el.classList.remove('hidden');
-            el.innerHTML =
-                '<input id="aw-email" type="email" placeholder="email" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-40">' +
-                '<input id="aw-pass" type="password" placeholder="password" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-32">' +
-                '<button id="aw-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
-                '<span id="aw-msg" class="text-amberAccent"></span>';
-            document.getElementById('aw-signin').addEventListener('click', async function () {
-                const r = await sb.auth.signInWithPassword({ email: document.getElementById('aw-email').value.trim(), password: document.getElementById('aw-pass').value });
-                if (r.error) { document.getElementById('aw-msg').textContent = r.error.message; return; }
-                el.classList.add('hidden');
-                addCurrentAsWeek(); // retry now that the (shared) session is established
-            });
-        }
         async function addCurrentAsWeek() {
             const sb = window.supabaseClient;
             if (!sb) { setAddWeekStatus('Backend unavailable — can’t save.', false); return; }
             let session = null;
             try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
-            if (!session) { setAddWeekStatus('Sign in to save a week plan.', false); showAddWeekAuth(); return; }
+            if (!session) { setAddWeekStatus('Sign in from the header (top-right) to save a week plan.', false); return; }
             let n = 1; while (weeksPlan[String(n)]) n++;     // next free week number
             const w = String(n);
             const row = {
@@ -599,7 +582,7 @@ function updateMealDropdownLabels(days) {
             if (!sb || !sbId) { setEditStatus('Backend unavailable — can’t save.', false); return; }
             let session = null;
             try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
-            if (!session) { setEditStatus('Sign in to save (below).', false); showMetaAuth(saveRecipeEdits); return; }
+            if (!session) { setEditStatus('Sign in from the header (top-right) to save.', false); return; }
             setEditStatus('Saving…', true);
             try {
                 const servings = Number(rec._baseServings) > 0 ? Number(rec._baseServings) : 1;
@@ -614,7 +597,7 @@ function updateMealDropdownLabels(days) {
                         data_type: ing._dataType || 'custom', is_estimate: (ing._isEstimate != null ? ing._isEstimate : true)
                     };
                     let res;
-                    if (ing._fdcId != null) { row.usda_fdc_id = ing._fdcId; res = await sb.from('ingredients').upsert([row], { onConflict: 'usda_fdc_id' }).select('id').single(); }
+                    if (ing._fdcId != null) { row.usda_fdc_id = ing._fdcId; res = await sb.from('ingredients').upsert([row], { onConflict: 'user_id,usda_fdc_id' }).select('id').single(); }
                     else { res = await sb.from('ingredients').insert([row]).select('id').single(); }
                     if (res.error) throw new Error(res.error.message);
                     ids.push(res.data.id);
@@ -693,25 +676,6 @@ function updateMealDropdownLabels(days) {
             btn.classList.toggle('opacity-40', dis);
             btn.classList.toggle('cursor-not-allowed', dis);
         }
-        // Inline sign-in shown only if she tries to save a custom recipe's freezer/notes while
-        // signed out. The session is shared across pages (window.supabaseClient), so usually skipped.
-        function showMetaAuth(retry) {
-            const el = document.getElementById('recipe-meta-auth');
-            const sb = window.supabaseClient;
-            if (!el || !sb || !sb.auth) return;
-            el.classList.remove('hidden');
-            el.innerHTML =
-                '<input id="rn-email" type="email" placeholder="email" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-40">' +
-                '<input id="rn-pass" type="password" placeholder="password" class="bg-white border border-stoneNeutral-300 rounded px-2 py-1.5 w-32">' +
-                '<button id="rn-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
-                '<span id="rn-msg" class="text-amberAccent"></span>';
-            document.getElementById('rn-signin').addEventListener('click', async function () {
-                const r = await sb.auth.signInWithPassword({ email: document.getElementById('rn-email').value.trim(), password: document.getElementById('rn-pass').value });
-                if (r.error) { document.getElementById('rn-msg').textContent = r.error.message; return; }
-                el.classList.add('hidden');
-                (typeof retry === 'function' ? retry : saveMeta)(); // retry now that the (shared) session is established
-            });
-        }
         async function saveMeta() {
             const id = selectedRecipeId;
             const notesEl = document.getElementById('recipe-notes');
@@ -724,7 +688,7 @@ function updateMealDropdownLabels(days) {
                 if (!sb || !sbId) { setMetaStatus('Backend unavailable — can’t save.', false); return; }
                 let session = null;
                 try { session = (await sb.auth.getSession()).data.session; } catch (e) { /* offline */ }
-                if (!session) { setMetaStatus('Sign in to save.', false); showMetaAuth(); return; }
+                if (!session) { setMetaStatus('Sign in from the header (top-right) to save.', false); return; }
                 setMetaStatus('Saving…', true);
                 const res = await sb.from('recipes').update({ notes: notesVal || null, freezer_tips: freezerVal || null }).eq('id', sbId);
                 if (res.error) { setMetaStatus(res.error.message, false); return; }

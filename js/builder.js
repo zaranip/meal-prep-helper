@@ -152,20 +152,11 @@
         var area = $('builder-auth');
         if (!area) return;
         if (!sb) { area.innerHTML = '<span class="text-amberAccent font-semibold">Backend not configured</span>'; return; }
+        // Sign-in lives in the header now (the one place to authenticate); this just reflects status.
         if (signedIn) {
-            area.innerHTML = '<span class="text-stoneNeutral-700">Signed in: ' + esc(session.user.email) + '</span>' +
-                '<button id="b-signout" class="bg-stoneNeutral-200 text-stoneNeutral-800 font-semibold px-3 py-1.5 rounded hover:bg-stoneNeutral-300">Sign out</button>';
-            $('b-signout').addEventListener('click', function () { sb.auth.signOut(); });
+            area.innerHTML = '<span class="text-emeraldAccent font-semibold">Signed in: ' + esc(session.user.email) + '</span> &bull; <span class="text-stoneNeutral-700">your recipes are private to your account.</span>';
         } else {
-            area.innerHTML =
-                '<input id="b-email" type="email" placeholder="email" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 w-36">' +
-                '<input id="b-pass" type="password" placeholder="password" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 w-28">' +
-                '<button id="b-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
-                '<span id="b-login-msg" class="text-amberAccent"></span>';
-            $('b-signin').addEventListener('click', async function () {
-                var r = await sb.auth.signInWithPassword({ email: $('b-email').value.trim(), password: $('b-pass').value });
-                if (r.error) $('b-login-msg').textContent = r.error.message;
-            });
+            area.innerHTML = '<span class="text-stoneNeutral-700">Sign in from the <b>header (top-right)</b> to add &amp; edit your recipes.</span>';
         }
         syncWriteUI();
         renderSaved();
@@ -347,7 +338,7 @@
                     fat_per_100g: d.per.fat, carbs_per_100g: d.per.carbs, fiber_per_100g: d.per.fiber,
                     data_type: d.dataType, is_estimate: !d.verified, package_unit: 'g'
                 };
-                var res = await sb.from('ingredients').upsert([row], { onConflict: 'usda_fdc_id' }).select('id').single();
+                var res = await sb.from('ingredients').upsert([row], { onConflict: 'user_id,usda_fdc_id' }).select('id').single();
                 if (res.error) throw new Error(res.error.message);
                 return res.data.id;
             }));

@@ -27,13 +27,17 @@ function mockBuilder(getRows) {
     };
     return b;
 }
+let mockSession = null; // tests set this to simulate a signed-in account (per-user data is auth-gated)
 function mockClient() {
     return {
         from(name) { return mockBuilder(() => tableData[name] || []); },
         auth: {
-            getSession: () => Promise.resolve({ data: { session: null } }),
+            getSession: () => Promise.resolve({ data: { session: mockSession } }),
             onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
             signInWithPassword: () => Promise.resolve({ error: null }),
+            signUp: () => Promise.resolve({ data: { session: null }, error: null }),
+            resetPasswordForEmail: () => Promise.resolve({ error: null }),
+            updateUser: () => Promise.resolve({ error: null }),
             signOut: () => Promise.resolve({ error: null })
         },
         functions: {
@@ -528,14 +532,40 @@ async function testCustomSave() {
         // saving while signed out -> sign-in prompt
         saveBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
         await new Promise((r) => w.setTimeout(r, 30));
-        const promptShown = !d.getElementById('recipe-meta-auth').classList.contains('hidden') && /sign in/i.test(d.getElementById('recipe-edit-status').textContent);
+        const promptShown = /sign in from the header/i.test(d.getElementById('recipe-edit-status').textContent);
         b.dom.window.close();
         ok = enabled && promptShown;
-        info = 'save-enabled=' + enabled + ', signin-prompt=' + promptShown;
+        info = 'save-enabled=' + enabled + ', header-prompt=' + promptShown;
     } finally {
         tableData.recipes = [];
     }
     console.log((ok ? 'ok   ' : 'FAIL ') + 'custom-save (' + info + ')');
+    return ok;
+}
+
+// Unified header auth: the ONE sign-in lives in the header. Signed out shows sign in / create
+// account / forgot password; signed in shows the account email + sign out. Old inline forms gone.
+async function testHeaderAuth() {
+    const out = await bootDOM('index.html');
+    const w = out.w, d = w.document;
+    const ha = d.getElementById('header-auth');
+    const signedOutOk = !!ha && !!d.getElementById('ha-signin') && !!d.getElementById('ha-signup') && !!d.getElementById('ha-forgot');
+    out.dom.window.close();
+
+    mockSession = { user: { id: 'u-test', email: 'me@example.com' } };
+    const inp = await bootDOM('index.html');
+    const ha2 = inp.w.document.getElementById('header-auth');
+    const signedInOk = !!ha2 && /me@example.com/.test(ha2.textContent) && !!inp.w.document.getElementById('ha-signout');
+    inp.dom.window.close();
+    mockSession = null;
+
+    // Old inline builder sign-in form should be gone (header is the only place).
+    const bld = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+    const noInlineForm = !bld.w.document.getElementById('b-signin') && /header/i.test((bld.w.document.getElementById('builder-auth') || {}).textContent || '');
+    bld.dom.window.close();
+
+    const ok = signedOutOk && signedInOk && noInlineForm;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'header-auth (signed-out=' + signedOutOk + ', signed-in=' + signedInOk + ', no-inline-form=' + noInlineForm + ')');
     return ok;
 }
 
@@ -549,11 +579,10 @@ async function testAddWeek() {
     const hasBtn = !!btn;
     if (btn) btn.dispatchEvent(new w.Event('click', { bubbles: true }));
     await new Promise((r) => w.setTimeout(r, 20));
-    const promptShown = !d.getElementById('add-week-auth').classList.contains('hidden') &&
-        /sign in/i.test(d.getElementById('add-week-status').textContent);
+    const promptShown = /sign in from the header/i.test(d.getElementById('add-week-status').textContent);
     b.dom.window.close();
     const ok = hasBtn && promptShown;
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'add-week   (btn=' + hasBtn + ', signin-prompt=' + promptShown + ')');
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'add-week   (btn=' + hasBtn + ', header-prompt=' + promptShown + ')');
     return ok;
 }
 
@@ -562,6 +591,7 @@ async function testAddWeek() {
 // adopted (cross-device sync still works).
 async function testStateTimestamp() {
     let keptLocal = false, adoptedRemote = false;
+    mockSession = { user: { id: 'u-test' } }; // per-user settings sync requires a signed-in session
     try {
         tableData.app_settings = [{ data: { selectedRecipeId: 'pancakes', _ts: 1 } }];         // stale remote
         const a = await bootDOM('recipes.html', [], JSON.stringify({ selectedRecipeId: 'bagel', _ts: 9e15 }));
@@ -574,6 +604,7 @@ async function testStateTimestamp() {
         b.dom.window.close();
     } finally {
         tableData.app_settings = [];
+        mockSession = null;
     }
     const ok = keptLocal && adoptedRemote;
     console.log((ok ? 'ok   ' : 'FAIL ') + 'state-ts   (fresh-local-kept=' + keptLocal + ', newer-remote-adopted=' + adoptedRemote + ')');
@@ -649,6 +680,7 @@ async function testSnackSlot() {
     if (!(await testSnackInLibrary())) failed = true;
     if (!(await testDeepDive())) failed = true;
     if (!(await testCustomSave())) failed = true;
+    if (!(await testHeaderAuth())) failed = true;
     if (!(await testAddWeek())) failed = true;
     if (!(await testStateTimestamp())) failed = true;
     if (!(await testWeekSnackOnLoad())) failed = true;

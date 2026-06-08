@@ -50,21 +50,10 @@
         signedIn = !!session;
         var el = $('week-auth');
         if (el) {
-            if (signedIn) {
-                el.innerHTML = '<span class="text-stoneNeutral-700">Signed in: ' + esc(session.user.email) + '</span> ' +
-                    '<button id="week-signout" class="bg-stoneNeutral-200 text-stoneNeutral-800 font-semibold px-3 py-1.5 rounded hover:bg-stoneNeutral-300">Sign out</button>';
-                $('week-signout').addEventListener('click', function () { sb.auth.signOut(); });
-            } else {
-                el.innerHTML =
-                    '<input id="week-email" type="email" placeholder="email" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 w-36">' +
-                    '<input id="week-pass" type="password" placeholder="password" class="bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 w-28">' +
-                    '<button id="week-signin" class="bg-emeraldAccent text-white font-semibold px-3 py-1.5 rounded hover:opacity-90">Sign in</button>' +
-                    '<span id="week-login-msg" class="text-amberAccent ml-1"></span>';
-                $('week-signin').addEventListener('click', async function () {
-                    var r = await sb.auth.signInWithPassword({ email: $('week-email').value.trim(), password: $('week-pass').value });
-                    if (r.error) $('week-login-msg').textContent = r.error.message;
-                });
-            }
+            // Sign-in is centralized in the header now; this just reflects status.
+            el.innerHTML = signedIn
+                ? '<span class="text-emeraldAccent font-semibold">Signed in: ' + esc(session.user.email) + '</span>'
+                : '<span class="text-stoneNeutral-700">Sign in from the <b>header (top-right)</b> to edit week templates.</span>';
         }
         renderWeeks();
     }
@@ -113,22 +102,26 @@
         if (!nums.length) { list.innerHTML = '<p class="text-sm text-stoneNeutral-700">No week templates yet.' + (signedIn ? ' Use “+ Add week”.' : '') + '</p>'; }
         nums.forEach(function (w) {
             var wk = weeks[w];
+            // Pre-loaded shared templates (user_id IS NULL) are read-only — editing one would
+            // (with RLS) fork a duplicate-numbered personal row instead of updating it.
+            var shared = !!wk._shared;
+            var editable = signedIn && !shared;
             var div = document.createElement('div');
             div.className = 'bg-white p-4 rounded-xl border border-stoneNeutral-200 shadow-sm';
             div.innerHTML =
                 '<div class="flex justify-between items-center mb-3">' +
-                    '<h4 class="font-bold text-stoneNeutral-900">Week ' + esc(w) + '</h4>' +
-                    (signedIn ? '<button class="week-del text-amberAccent text-xs font-semibold hover:underline" data-w="' + esc(w) + '">Delete</button>' : '') +
+                    '<h4 class="font-bold text-stoneNeutral-900">Week ' + esc(w) + (shared ? ' <span class="text-[10px] uppercase font-bold text-stoneNeutral-500">· shared template</span>' : '') + '</h4>' +
+                    (editable ? '<button class="week-del text-amberAccent text-xs font-semibold hover:underline" data-w="' + esc(w) + '">Delete</button>' : '') +
                 '</div>' +
                 '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3">' +
                 SLOTS.map(function (s) {
                     return '<label class="text-[11px] font-semibold text-stoneNeutral-700">' + s.label +
-                        '<select class="week-slot mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-xs" data-w="' + esc(w) + '" data-slot="' + s.key + '"' + (signedIn ? '' : ' disabled') + '>' +
+                        '<select class="week-slot mt-1 w-full bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-2 py-1.5 text-xs" data-w="' + esc(w) + '" data-slot="' + s.key + '"' + (editable ? '' : ' disabled') + '>' +
                         recipeOptions(s.cat, wk[s.key]) + '</select></label>';
                 }).join('') +
                 '</div>' +
                 '<div class="week-summary mt-3 pt-3 border-t border-stoneNeutral-100" id="week-summary-' + esc(w) + '"></div>' +
-                (signedIn ? '<div class="mt-3 flex items-center gap-2"><button class="week-save bg-emeraldAccent text-white text-xs font-semibold px-4 py-1.5 rounded hover:opacity-90" data-w="' + esc(w) + '">Save Week ' + esc(w) + '</button><span class="week-msg text-xs"></span></div>' : '');
+                (editable ? '<div class="mt-3 flex items-center gap-2"><button class="week-save bg-emeraldAccent text-white text-xs font-semibold px-4 py-1.5 rounded hover:opacity-90" data-w="' + esc(w) + '">Save Week ' + esc(w) + '</button><span class="week-msg text-xs"></span></div>' : (shared ? '<p class="mt-3 text-[11px] text-stoneNeutral-500 italic">Pre-loaded template — load it on the Dashboard or use “+ Add week” to make your own editable copy.</p>' : ''));
             list.appendChild(div);
             renderWeekSummary(w);
         });
@@ -152,9 +145,9 @@
         if (!signedIn) return;
         var wk = weeks[w];
         var row = { week: Number(w), breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert, snack: wk.snack || 'none' };
-        var res = await sb.from('week_plans').upsert([row], { onConflict: 'week' });
+        var res = await sb.from('week_plans').upsert([row], { onConflict: 'user_id,week' });
         if (res.error) { if (msgEl) { msgEl.textContent = res.error.message; msgEl.className = 'week-msg text-xs text-amberAccent'; } return; }
-        window.weeksPlan[w] = { breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert, snack: wk.snack || 'none' };
+        window.weeksPlan[w] = { breakfast: wk.breakfast, lunch: wk.lunch, dinner: wk.dinner, dessert: wk.dessert, snack: wk.snack || 'none', _shared: false };
         if (msgEl) { msgEl.textContent = 'Saved.'; msgEl.className = 'week-msg text-xs text-emeraldAccent'; }
     }
     async function deleteWeek(w) {

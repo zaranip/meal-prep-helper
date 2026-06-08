@@ -61,7 +61,9 @@
         (t.week_plans || []).slice()
             .sort(function (a, b) { return a.week - b.week; })
             .forEach(function (w) {
-                weeksPlan[String(w.week)] = { breakfast: w.breakfast, lunch: w.lunch, dinner: w.dinner, dessert: w.dessert, snack: w.snack || 'none' };
+                // _shared = a pre-loaded template (user_id IS NULL) — read-only in the week editor.
+                // Strict === null so a pre-migration row (no user_id column → undefined) stays editable.
+                weeksPlan[String(w.week)] = { breakfast: w.breakfast, lunch: w.lunch, dinner: w.dinner, dessert: w.dessert, snack: w.snack || 'none', _shared: w.user_id === null };
             });
 
         const cfgRow = Array.isArray(t.app_config) ? t.app_config[0] : t.app_config;

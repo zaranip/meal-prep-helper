@@ -61,19 +61,23 @@ function persistState() {
     var sb = window.supabaseClient;
     if (!sb || !sb.auth) return;
     sb.auth.getSession().then(function (r) {
-        if (!r || !r.data || !r.data.session) return; // only signed-in writes (RLS)
-        sb.from('app_settings').upsert([{ id: 1, data: Object.assign({}, snapshotState(), { _ts: ts }), updated_at: new Date().toISOString() }], { onConflict: 'id' })
+        var sess = r && r.data && r.data.session;
+        if (!sess) return; // only signed-in writes (RLS). Settings are PER-USER now.
+        sb.from('app_settings').upsert([{ user_id: sess.user.id, data: Object.assign({}, snapshotState(), { _ts: ts }), updated_at: new Date().toISOString() }], { onConflict: 'user_id' })
             .then(function () {}, function () {}); // ignore errors — localStorage already holds it
     }, function () {});
 }
 
-// On load, adopt the remote row if present AND not older than local (cross-device source of truth),
-// else keep local. The timestamp gate prevents a stale remote from overwriting a newer local click.
+// On load, adopt THIS USER's remote row if present AND not older than local (cross-device source
+// of truth), else keep local. Per-user: each account has its own settings row; signed-out users
+// stay on localStorage only. The timestamp gate prevents a stale remote clobbering a newer local.
 window.STATE_READY = (async function () {
     var sb = window.supabaseClient;
-    if (!sb) return snapshotState();
+    if (!sb || !sb.auth) return snapshotState();
     try {
-        var res = await sb.from('app_settings').select('data').eq('id', 1).maybeSingle();
+        var sess = (await sb.auth.getSession()).data.session;
+        if (!sess) return snapshotState(); // signed out -> localStorage only
+        var res = await sb.from('app_settings').select('data').eq('user_id', sess.user.id).maybeSingle();
         var remote = res && res.data && res.data.data;
         if (remote) {
             var localTs = Number(_s0 && _s0._ts) || 0;
