@@ -600,7 +600,12 @@
                 name: 'Light Butter', perServing: 14,
                 per100: { calories: 357.14, protein: 0, fat: 42.86, carbs: 0, fiber: 0 }
             }]
-        }
+        },
+        // Verified from the stock ingredientDB (perServing = grams in 1 of the named unit):
+        // garlic 1 clove = 3 g, yellow onion 1 medium = 100/0.91 ≈ 109.9 g, large egg = 50 g.
+        garlic: { label: 'Garlic (1 clove)', items: [{ key: 'garlic', name: 'Garlic', perServing: 3 }] },
+        onion: { label: 'Onion (1 medium)', items: [{ key: 'yellow onion (diced)', name: 'Yellow Onion', perServing: 109.9 }] },
+        wholeegg: { label: 'Egg (1 whole)', items: [{ key: 'large eggs', name: 'Large Egg', perServing: 50 }] }
     };
     // Convert a verified ingredientDB entry (macros per its standard unit) to per-100g.
     function verifiedPer100(key) {

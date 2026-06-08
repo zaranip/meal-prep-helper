@@ -254,10 +254,17 @@ async function testQuickAdd() {
     const butterTxt = butterRow ? butterRow.textContent : '';
     const butterGrams = butterRow ? butterRow.querySelector('.b-grams').value : '';
     const butterOk = !!butterRow && String(butterGrams) === '14' && /50 kcal/.test(butterTxt) && /6g F/.test(butterTxt);
+
+    // Garlic (1 clove) from verified ingredientDB: 3 g, ~4 kcal.
+    const garlicBtn = Array.from(d.querySelectorAll('.quick-add-btn')).find((x) => x.getAttribute('data-quick') === 'garlic');
+    garlicBtn.dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 20));
+    const garlicRow = Array.from(d.getElementById('b-draft-list').children).find((li) => /Garlic/.test(li.textContent));
+    const garlicOk = !!garlicRow && String(garlicRow.querySelector('.b-grams').value) === '3' && /4 kcal/.test(garlicRow.textContent) && /verified/.test(garlicRow.textContent);
     b.dom.window.close();
 
-    const ok = rows === 2 && /White Rice/.test(txt) && /Black Rice/.test(txt) && grams.indexOf('75') >= 0 && grams.indexOf('37.5') >= 0 && butterOk;
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'quick-add  (rice blend @ 2× -> ' + rows + ' rows; butter 14g/50kcal ok=' + butterOk + ')');
+    const ok = rows === 2 && /White Rice/.test(txt) && /Black Rice/.test(txt) && grams.indexOf('75') >= 0 && grams.indexOf('37.5') >= 0 && butterOk && garlicOk;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'quick-add  (rice @ 2×; butter 14g/50kcal=' + butterOk + '; garlic 3g/4kcal=' + garlicOk + ')');
     return ok;
 }
 
