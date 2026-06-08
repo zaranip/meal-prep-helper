@@ -1,6 +1,6 @@
 # Meal Prep Dashboard
 
-A single-page web app for planning a week of high-protein meal prep: mix-and-match meals, track daily and weekly macros against a calorie goal, scale recipes for batch cooking, generate a consolidated shopping list with real package/carton counts, and lay out a daily eating schedule around your wake / gym / sleep times.
+A single-page web app for planning a week of high-protein meal prep: mix-and-match meals, track daily and weekly macros against a calorie goal, scale recipes for batch cooking, generate a consolidated shopping list with real package/carton counts, and lay out a weekly meal prep schedule around where users can select recipes for all meals and snacks.
 
 It's a **dynamic site** complete with backend set up via Supabase. 
 
@@ -28,8 +28,8 @@ The app has four tabs:
 - A sequential **prep & cooking timeline** with clickable ingredient quantities.
 
 ### 4. Calendar
-- A **single-day meal-timing** view that places your meals at optimal times.
-- Inputs for **wake**, **gym** (a 2-hour session), and **sleep**, plus a **"No gym today"** option.
+- A **weekly meal prep** view that allows custom breakfast / meals / snack plans.
+- Additionally, a daily schedule helper to optimize gym and work schedules with inputs for **wake**, **gym** (a 2-hour session), and **sleep**, plus a **"No gym today"** option.
 - Timing logic: breakfast ~30 min after waking, lunch midday, a light pre-gym snack ~1.5 h before lifting, a protein-forward dinner ~45 min after the gym, and dessert ~1.5 h before bed. (No-gym days use an afternoon snack and an evening dinner.)
 
 ### Global controls (header)
