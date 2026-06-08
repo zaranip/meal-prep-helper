@@ -631,6 +631,27 @@
         else if (added) flash($('b-save-msg'), q.label + ' added (' + servings + '× base servings). Edit grams if needed.', true);
     }
 
+    // ---- Manual entry: a food not in USDA. Macros are entered for a gram basis, stored per-100g.
+    function addManualFood() {
+        var msg = $('b-manual-msg');
+        var name = ($('b-manual-name').value || '').trim();
+        var basis = parseFloat($('b-manual-basis').value);
+        if (!name) { flash(msg, 'Enter a food name.', false); return; }
+        if (!isFinite(basis) || basis <= 0) { flash(msg, 'Enter the amount (grams) the macros are for.', false); return; }
+        var n = function (id) { var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : 0; };
+        var f = 100 / basis; // entered macros are for `basis` grams -> per 100 g
+        draft.push({
+            fdcId: null, name: name, dataType: 'custom', verified: true, // your own confirmed numbers, not a USDA estimate
+            per: { calories: n('b-manual-cal') * f, protein: n('b-manual-prot') * f, fat: n('b-manual-fat') * f, carbs: n('b-manual-carb') * f, fiber: n('b-manual-fib') * f },
+            grams: basis
+        });
+        renderDraft();
+        flash(msg, '“' + name + '” added (' + basis + ' g). Edit grams in the list if needed.', true);
+        ['b-manual-name', 'b-manual-cal', 'b-manual-prot', 'b-manual-fat', 'b-manual-carb', 'b-manual-fib'].forEach(function (id) { if ($(id)) $(id).value = ''; });
+        if ($('b-manual-basis')) $('b-manual-basis').value = '100';
+        if ($('b-manual-name')) $('b-manual-name').focus();
+    }
+
     function wire() {
         $('b-usda-search').addEventListener('click', async function () {
             var q = $('b-usda-query').value.trim();
@@ -648,6 +669,8 @@
         document.querySelectorAll('.quick-add-btn').forEach(function (b) {
             b.addEventListener('click', function () { quickAdd(b.getAttribute('data-quick')); });
         });
+        if ($('b-manual-toggle')) $('b-manual-toggle').addEventListener('click', function () { var f = $('b-manual-form'); if (f) f.classList.toggle('hidden'); });
+        if ($('b-manual-add')) $('b-manual-add').addEventListener('click', addManualFood);
         // Scale controls (proposed per-serving recipe preview).
         if ($('b-scale-mode')) $('b-scale-mode').addEventListener('change', function () {
             if ($('b-scale-target')) $('b-scale-target').classList.toggle('hidden', $('b-scale-mode').value !== 'custom');

@@ -203,6 +203,28 @@ async function testScalePreview() {
     return ok;
 }
 
+// Manual "add my own food": enter macros for a gram basis -> a draft row with the right per-item
+// macros (basis 50 g, 200 kcal entered -> per-100g 400, row at 50 g shows 200 kcal), flagged verified.
+async function testManualFood() {
+    const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+    const w = b.w, d = w.document;
+    d.getElementById('b-manual-toggle').dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 10));
+    const formShown = !d.getElementById('b-manual-form').classList.contains('hidden');
+    d.getElementById('b-manual-name').value = 'Chili Crisp';
+    d.getElementById('b-manual-basis').value = '50';
+    d.getElementById('b-manual-cal').value = '200';
+    d.getElementById('b-manual-prot').value = '10';
+    d.getElementById('b-manual-add').dispatchEvent(new w.Event('click', { bubbles: true }));
+    await new Promise((r) => w.setTimeout(r, 20));
+    const row = Array.from(d.getElementById('b-draft-list').children).find((li) => /Chili Crisp/.test(li.textContent));
+    const cleared = d.getElementById('b-manual-name').value === ''; // form resets for the next entry
+    const ok = formShown && !!row && String(row.querySelector('.b-grams').value) === '50' && /200 kcal/.test(row.textContent) && /verified/.test(row.textContent) && cleared;
+    b.dom.window.close();
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'manual-food (form=' + formShown + ', row=' + !!row + ', 50g/200kcal=' + (!!row && /200 kcal/.test(row.textContent)) + ', cleared=' + cleared + ')');
+    return ok;
+}
+
 // Saved-recipe row in the Add Recipe tab: clicking the recipe title opens it in the Recipes
 // scaler (sets selectedRecipeId + persists, then navigates). Edit/Delete buttons stay.
 async function testOpenInScaler() {
@@ -677,6 +699,7 @@ async function testSnackSlot() {
     if (!(await testStateLink())) failed = true;
     if (!(await testImport())) failed = true;
     if (!(await testOpenInScaler())) failed = true;
+    if (!(await testManualFood())) failed = true;
     if (!(await testScalePreview())) failed = true;
     if (!(await testQuickAdd())) failed = true;
     if (!(await testWeekEditor())) failed = true;

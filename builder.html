@@ -138,6 +138,28 @@
                             <button id="b-usda-search" class="bg-skyAccent text-white font-semibold text-sm px-4 py-2 rounded hover:opacity-90">Search</button>
                         </div>
                         <div id="b-usda-results" class="mt-3 space-y-2 max-h-72 overflow-y-auto"></div>
+
+                        <!-- Manual entry: a food not in USDA. Enter macros for a given amount. -->
+                        <div class="mt-3 border-t border-stoneNeutral-200 pt-3">
+                            <button id="b-manual-toggle" class="text-sm font-semibold text-skyAccent hover:underline">&#43; Add my own food (not in USDA)</button>
+                            <div id="b-manual-form" class="hidden mt-3 space-y-2 bg-stoneNeutral-50 border border-stoneNeutral-200 rounded-lg p-3">
+                                <input id="b-manual-name" type="text" placeholder="Food name (e.g. Grandma's chili crisp)" class="w-full bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm">
+                                <label class="block text-[11px] font-semibold text-stoneNeutral-700">Macros are for this amount (grams)
+                                    <input id="b-manual-basis" type="number" min="0.1" step="1" value="100" class="mt-1 w-28 bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm">
+                                </label>
+                                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-stoneNeutral-700">Calories<input id="b-manual-cal" type="number" min="0" step="1" class="mt-1 w-full bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm"></label>
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-stoneNeutral-700">Protein (g)<input id="b-manual-prot" type="number" min="0" step="0.1" class="mt-1 w-full bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm"></label>
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-stoneNeutral-700">Fat (g)<input id="b-manual-fat" type="number" min="0" step="0.1" class="mt-1 w-full bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm"></label>
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-stoneNeutral-700">Carbs (g)<input id="b-manual-carb" type="number" min="0" step="0.1" class="mt-1 w-full bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm"></label>
+                                    <label class="text-[10px] font-bold uppercase tracking-wider text-stoneNeutral-700">Fiber (g)<input id="b-manual-fib" type="number" min="0" step="0.1" class="mt-1 w-full bg-white border border-stoneNeutral-200 rounded px-2 py-1.5 text-sm"></label>
+                                </div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <button id="b-manual-add" class="bg-emeraldAccent text-white font-semibold text-sm px-4 py-2 rounded hover:opacity-90">Add to recipe</button>
+                                    <span id="b-manual-msg" class="text-xs"></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
