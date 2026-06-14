@@ -14,17 +14,31 @@
         { p: 'dashboard', href: 'index.html', label: 'Dashboard' },
         { p: 'recipes', href: 'recipes.html', label: 'Recipes' },
         { p: 'prep', href: 'planner.html', label: 'Planner' },
-        { p: 'calendar', href: 'calendar.html', label: 'Calendar' },
-        { p: 'builder', href: 'builder.html', label: '+', title: 'Add Recipe' }
+        { p: 'calendar', href: 'calendar.html', label: 'Calendar' }
     ];
     var linkHtml = links.map(function (l) {
         var active = l.p === page;
-        var cls = 'px-4 py-2 rounded-md font-medium transition-all ' +
-            (active ? 'bg-white shadow-sm text-stoneNeutral-800' : 'text-stoneNeutral-700 hover:text-stoneNeutral-900') +
-            (l.label === '+' ? ' font-bold text-lg leading-none px-3' : '');
-        var attrs = l.title ? ' title="' + l.title + '" aria-label="' + l.title + '"' : '';
-        return '<a href="' + l.href + '"' + attrs + ' class="' + cls + '">' + l.label + '</a>';
+        var cls = 'px-4 py-2 rounded-md font-medium whitespace-nowrap transition-all ' +
+            (active ? 'bg-white shadow-sm text-stoneNeutral-800' : 'text-stoneNeutral-700 hover:text-stoneNeutral-900');
+        return '<a href="' + l.href + '" class="' + cls + '">' + l.label + '</a>';
     }).join('');
+
+    // "Customize" is a dropdown: Add Recipes / My Recipes (opens on hover, and click/tap toggles it).
+    var addActive = (page === 'builder' || page === 'myrecipes');
+    var addBtnCls = 'px-4 py-2 rounded-md font-medium whitespace-nowrap inline-flex items-center gap-1 transition-all ' +
+        (addActive ? 'bg-white shadow-sm text-stoneNeutral-800' : 'text-stoneNeutral-700 hover:text-stoneNeutral-900');
+    var item = function (href, p, label) {
+        return '<a href="' + href + '" class="block whitespace-nowrap px-4 py-2 text-sm font-medium rounded ' +
+            (p === page ? 'bg-stoneNeutral-100 text-stoneNeutral-900' : 'text-stoneNeutral-700 hover:bg-stoneNeutral-100') + '">' + label + '</a>';
+    };
+    linkHtml +=
+        '<div class="relative group" id="nav-add">' +
+            '<button type="button" id="nav-add-btn" aria-haspopup="true" aria-expanded="false" title="Add Recipes / My Recipes" class="' + addBtnCls + '">Customize <span aria-hidden="true" class="text-[10px]">&#9662;</span></button>' +
+            '<div id="nav-add-menu" class="hidden group-hover:block absolute right-0 mt-1 w-44 bg-white border border-stoneNeutral-200 rounded-lg shadow-lg p-1 z-20">' +
+                item('builder.html', 'builder', 'Add Recipes') +
+                item('my-recipes.html', 'myrecipes', 'My Recipes') +
+            '</div>' +
+        '</div>';
 
     var amtBtn = function (val, label) {
         var on = mode === val;
@@ -50,10 +64,26 @@
                 '</div>' +
                 '<div class="flex flex-col items-stretch sm:items-end gap-3">' +
                     '<div id="header-auth" class="text-xs w-full sm:w-auto"></div>' +
-                    '<nav class="flex flex-wrap justify-center gap-2 bg-stoneNeutral-100 p-1.5 rounded-lg border border-stoneNeutral-200 text-sm">' + linkHtml + '</nav>' +
+                    '<nav class="flex flex-wrap sm:flex-nowrap justify-center sm:justify-end items-center gap-2 bg-stoneNeutral-100 p-1.5 rounded-lg border border-stoneNeutral-200 text-sm">' + linkHtml + '</nav>' +
                 '</div>' +
             '</div>' +
         '</header>';
+
+    // ---- "+" dropdown: click/tap toggles it (hover is handled by group-hover) --------------
+    (function () {
+        var wrap = document.getElementById('nav-add');
+        var btn = document.getElementById('nav-add-btn');
+        var menu = document.getElementById('nav-add-menu');
+        if (!wrap || !btn || !menu) return;
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var open = menu.classList.toggle('hidden');
+            btn.setAttribute('aria-expanded', String(!open));
+        });
+        document.addEventListener('click', function (e) {
+            if (!wrap.contains(e.target)) { menu.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); }
+        });
+    })();
 
     // ---- Unified sign-in (the ONE place to authenticate) -------------------
     // Sign in / Create account / Forgot password / Sign out + password-recovery, all via the

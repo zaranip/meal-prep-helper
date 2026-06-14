@@ -67,7 +67,8 @@ const PAGES = [
     { file: 'recipes.html', label: 'recipes', assert: (d) => d.getElementById('recipe-title').textContent !== '--' && d.getElementById('scaled-ingredients').children.length > 0 && !!d.getElementById('recipe-meta-save') && d.getElementById('recipe-meta-save').disabled === true && !!d.getElementById('recipe-freezer-tips') && d.getElementById('recipe-freezer-tips').value.length > 0 },
     { file: 'planner.html', label: 'planner', assert: (d) => d.getElementById('grocery-items-container').children.length > 0 && d.getElementById('timeline-container').children.length > 0 },
     { file: 'calendar.html', label: 'calendar', assert: (d) => d.getElementById('schedule-container').children.length > 0 },
-    { file: 'builder.html', label: 'builder', assert: (d) => d.getElementById('builder-auth').innerHTML.length > 0, extra: ['js/recipe-parse.js', 'js/builder.js'] }
+    { file: 'builder.html', label: 'builder', assert: (d) => d.getElementById('builder-auth').innerHTML.length > 0, extra: ['js/recipe-parse.js', 'js/builder.js'] },
+    { file: 'my-recipes.html', label: 'my-recipes', assert: (d) => d.getElementById('my-recipes-list').textContent.length > 0, extra: ['js/my-recipes.js'] }
 ];
 
 async function runPage(page) {
@@ -225,32 +226,35 @@ async function testManualFood() {
     return ok;
 }
 
-// Saved-recipe row in the Add Recipe tab: clicking the recipe title opens it in the Recipes
-// scaler (sets selectedRecipeId + persists, then navigates). Edit/Delete buttons stay.
-async function testOpenInScaler() {
+// "My Custom Recipes" page: lists your recipes with View / Edit / Delete. View → opens in the
+// Recipes scaler (sets selectedRecipeId + persists, then navigates); Edit → builder.html?edit=<id>.
+async function testMyRecipes() {
     const snackRow = {
         id: 'snk5', title: 'Carrot Sticks', meal_type: 'snack', base_servings: 1, description: '', notes: '', freezer_tips: '', instructions: [],
         recipe_ingredients: [{ weight_in_grams: 50, ingredients: { name: 'Baby Carrots', usda_fdc_id: 999005, data_type: 'Branded', calories_per_100g: 40, protein_per_100g: 1, fat_per_100g: 0, carbs_per_100g: 9, fiber_per_100g: 3, is_estimate: true } }]
     };
     tableData.recipes = [snackRow];
+    mockSession = { user: { id: 'u-test' } };               // page lists only your own (RLS)
     let ok = false, info = '';
     try {
-        const b = await bootDOM('builder.html', ['js/recipe-parse.js', 'js/builder.js']);
+        const b = await bootDOM('my-recipes.html', ['js/my-recipes.js']);
         const w = b.w, d = w.document;
         await new Promise((r) => w.setTimeout(r, 40));
-        const openBtn = d.querySelector('.b-open');
-        const hasBtn = !!openBtn && /Carrot Sticks/.test(openBtn.textContent);
-        if (openBtn) openBtn.dispatchEvent(new w.Event('click', { bubbles: true })); // navigation is a no-op in jsdom
+        const listed = /Carrot Sticks/.test(d.getElementById('my-recipes-list').textContent);
+        const editBtn = d.querySelector('.mr-edit');
+        const editHref = !!editBtn; // edit navigates to builder?edit=<id> on click (no static href to read)
+        const viewBtn = d.querySelector('.mr-view');
+        if (viewBtn) viewBtn.dispatchEvent(new w.Event('click', { bubbles: true })); // View → scaler (nav is a no-op in jsdom)
         await new Promise((r) => w.setTimeout(r, 20));
         const saved = JSON.parse(w.localStorage.getItem('mealPrep.state.v1') || '{}');
-        const editStays = !!d.querySelector('.b-edit'); // signed-out mock -> no edit; check it didn't break render
         b.dom.window.close();
-        ok = hasBtn && saved.selectedRecipeId === 'sb_snk5';
-        info = 'open-btn=' + hasBtn + ', selectedRecipeId=' + saved.selectedRecipeId;
+        ok = listed && editHref && saved.selectedRecipeId === 'sb_snk5';
+        info = 'listed=' + listed + ', edit-btn=' + editHref + ', view→selectedRecipeId=' + saved.selectedRecipeId;
     } finally {
         tableData.recipes = [];
+        mockSession = null;
     }
-    console.log((ok ? 'ok   ' : 'FAIL ') + 'open-scaler (' + info + ')');
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'my-recipes (' + info + ')');
     return ok;
 }
 
@@ -598,6 +602,25 @@ async function testHeaderAuth() {
     return ok;
 }
 
+// Header "+" dropdown: collapsed by default, opens on click, and contains both Add recipes /
+// My recipes links (the old standalone nav links were merged into this menu).
+async function testNavDropdown() {
+    const b = await bootDOM('index.html');
+    const w = b.w, d = w.document;
+    const btn = d.getElementById('nav-add-btn');
+    const menu = d.getElementById('nav-add-menu');
+    const hasOpts = !!menu && !!menu.querySelector('a[href="builder.html"]') && !!menu.querySelector('a[href="my-recipes.html"]');
+    const startHidden = !!menu && menu.classList.contains('hidden');
+    if (btn) btn.dispatchEvent(new w.Event('click', { bubbles: true }));
+    const openAfterClick = !!menu && !menu.classList.contains('hidden');
+    // no standalone My Recipes / builder links left at the nav top level
+    const noStandalone = !Array.from(d.querySelectorAll('nav > a')).some((a) => /my-recipes\.html|builder\.html/.test(a.getAttribute('href') || ''));
+    b.dom.window.close();
+    const ok = !!btn && hasOpts && startHidden && openAfterClick && noStandalone;
+    console.log((ok ? 'ok   ' : 'FAIL ') + 'nav-dropdown (opts=' + hasOpts + ', start-hidden=' + startHidden + ', opens=' + openAfterClick + ', merged=' + noStandalone + ')');
+    return ok;
+}
+
 // "Add as new week plan" (dashboard): the button exists and, signed out (mock session null),
 // clicking it surfaces the inline sign-in (the actual week_plans insert is live-verify).
 async function testAddWeek() {
@@ -698,7 +721,7 @@ async function testSnackSlot() {
     }
     if (!(await testStateLink())) failed = true;
     if (!(await testImport())) failed = true;
-    if (!(await testOpenInScaler())) failed = true;
+    if (!(await testMyRecipes())) failed = true;
     if (!(await testManualFood())) failed = true;
     if (!(await testScalePreview())) failed = true;
     if (!(await testQuickAdd())) failed = true;
@@ -711,6 +734,7 @@ async function testSnackSlot() {
     if (!(await testDeepDive())) failed = true;
     if (!(await testCustomSave())) failed = true;
     if (!(await testHeaderAuth())) failed = true;
+    if (!(await testNavDropdown())) failed = true;
     if (!(await testAddWeek())) failed = true;
     if (!(await testStateTimestamp())) failed = true;
     if (!(await testWeekSnackOnLoad())) failed = true;

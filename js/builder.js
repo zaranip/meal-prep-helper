@@ -483,8 +483,19 @@
         if (res.error) { console.error('Load recipes failed:', res.error.message); return; }
         savedRaw = res.data || [];
         renderSaved();
+        maybeStartEditFromUrl();   // ?edit=<id> from the "My Recipes" tab opens that recipe here
         // Note: merging custom recipes into the global `recipes` (so they show on the
         // Dashboard/Recipes pages) is handled by js/data-layer.js on each page load.
+    }
+    // If arrived via my-recipes.html "Edit", pre-load that recipe into the form.
+    function maybeStartEditFromUrl() {
+        try {
+            var id = new URLSearchParams(window.location.search).get('edit');
+            if (!id) return;
+            var row = savedRaw.filter(function (r) { return String(r.id) === id; })[0];
+            if (row) startEdit(row);
+            if (window.history && window.history.replaceState) window.history.replaceState(null, '', window.location.pathname);
+        } catch (e) { /* ignore */ }
     }
 
     // ---- boot --------------------------------------------------------------
