@@ -36,7 +36,7 @@
         '<header class="bg-white border-b border-stoneNeutral-200 sticky top-0 z-10 shadow-sm">' +
             '<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-4">' +
                 '<div>' +
-                    '<h1 class="text-2xl font-bold text-stoneNeutral-900 tracking-tight">Meal Prep Dashboard</h1>' +
+                    '<h1 class="text-xl sm:text-2xl font-bold text-stoneNeutral-900 tracking-tight">Meal Prep Dashboard</h1>' +
                     '<p class="text-sm text-stoneNeutral-700 mt-1">Healthy, Nutritious, High Protein Diet &bull; Daily Calorie Goal: ' +
                         '<input type="number" id="calorie-goal" min="200" max="5000" step="50" value="' + goal + '" class="w-20 font-semibold text-emeraldAccent bg-stoneNeutral-100 border border-stoneNeutral-200 rounded px-1.5 py-0.5 text-center focus:outline-none focus:ring-2 focus:ring-emeraldAccent"> ' +
                         '<span class="text-emeraldAccent font-semibold">kcal/day</span>' +
@@ -50,7 +50,7 @@
                 '</div>' +
                 '<div class="flex flex-col items-stretch sm:items-end gap-3">' +
                     '<div id="header-auth" class="text-xs w-full sm:w-auto"></div>' +
-                    '<nav class="flex gap-2 bg-stoneNeutral-100 p-1.5 rounded-lg border border-stoneNeutral-200 text-sm">' + linkHtml + '</nav>' +
+                    '<nav class="flex flex-wrap justify-center gap-2 bg-stoneNeutral-100 p-1.5 rounded-lg border border-stoneNeutral-200 text-sm">' + linkHtml + '</nav>' +
                 '</div>' +
             '</div>' +
         '</header>';

@@ -316,7 +316,7 @@
                 '<span class="font-mono text-stoneNeutral-700">' + (Math.round(i.grams * 10) / 10) + ' g</span></li>';
         }).join('');
         el.innerHTML =
-            '<div class="grid grid-cols-5 gap-1.5 text-center text-xs font-mono font-bold mb-2">' +
+            '<div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 text-center text-xs font-mono font-bold mb-2">' +
                 cell('CAL', Math.round(m.cal)) + cell('PRO', r1(m.prot) + 'g') + cell('FAT', r1(m.fat) + 'g') + cell('CARB', r1(m.carb) + 'g') + cell('FIB', r1(m.fib) + 'g') +
             '</div>' +
             '<ul class="space-y-0.5 text-xs">' + ingHtml + '</ul>';

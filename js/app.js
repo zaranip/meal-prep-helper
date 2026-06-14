@@ -320,7 +320,7 @@ function updateMealDropdownLabels(days) {
                         <h4 class="font-bold text-stoneNeutral-900 mt-0.5">${recipe.title}</h4>
                         <p class="text-xs text-stoneNeutral-700 mt-1 line-clamp-1">${recipe.desc}</p>
                     </div>
-                    <div class="mt-3 sm:mt-0 flex gap-4 text-xs font-semibold">
+                    <div class="mt-3 sm:mt-0 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
                         <div class="text-center"><span class="block text-[10px] text-stoneNeutral-700 font-bold">CAL</span><span class="font-mono font-bold">${Math.round(mm.cal)}</span></div>
                         <div class="text-center"><span class="block text-[10px] text-stoneNeutral-700 font-bold">PRO</span><span class="font-mono font-bold text-emeraldAccent">${Math.round(mm.prot * 10) / 10}g</span></div>
                         <div class="text-center"><span class="block text-[10px] text-stoneNeutral-700 font-bold">FAT</span><span class="font-mono font-bold text-amberAccent">${Math.round(mm.fat * 10) / 10}g</span></div>
