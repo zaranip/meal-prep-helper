@@ -32,6 +32,69 @@ recipes are private to them — everyone shares a common set of pre-loaded start
 
 ---
 
+## Working with recipes
+
+Recipes are the heart of the app. There are two kinds: **shared starter recipes** (the pre-loaded
+templates everyone gets) and **your custom recipes** (private to your account). Here's the full
+lifecycle.
+
+### Building a recipe — the "Customize → Add Recipes" tab
+Several ways to add ingredients, mix-and-match freely within one recipe:
+
+- **USDA search** — type a food, pick a result, and it's pulled from USDA FoodData Central with
+  per-100g macros; set the gram weight and the running totals update live. USDA values are flagged
+  **"est."** so you know to confirm against the package.
+- **Quick-add staples** — one-click buttons for the things you use constantly (rice blend, egg-white
+  carton, tofu block, light butter, garlic clove, medium onion, whole egg), each using **verified**
+  macros and auto-scaled to your base servings.
+- **Add your own food** — for anything not in USDA: enter a name + the macros for a given gram
+  amount, and it's added like any other ingredient (kept private to you).
+- **Import from NYT Cooking** — paste a `cooking.nytimes.com` link and it auto-fills the title,
+  servings, steps, and ingredients (matched to USDA and flagged for review). The recipe's
+  description becomes the source link.
+
+As you build, the **"This recipe" panel** shows the actual ingredient totals, and a **live
+"scaled recipe" preview** shows exactly what will be saved.
+
+### Auto-scaling to a calorie target
+So recipes slot cleanly into a daily plan, each custom recipe is normalized to a **per-serving
+calorie target** (default **700 kcal**). You control this per recipe:
+
+- **Auto (700 kcal/serving)** — the default. If the recipe contains rice (the carb base), the
+  **rice is auto-sized to fill the gap** to the target while the rest stays as entered; otherwise
+  the whole recipe is scaled to the target.
+- **Custom kcal/serving** — type any target (e.g. 500) and it normalizes to that instead.
+- **Keep as entered** — no scaling; the recipe stays exactly as you typed it.
+- **Snacks are never scaled** — a 20-kcal bag of carrots stays 20 kcal.
+
+The calorie-goal in the header then scales the *whole plan* on top of this (a 900-kcal goal halves
+every portion), so the numbers stay consistent everywhere.
+
+### Scaling & exploring — the "Recipes" tab
+- **Multiplier + presets** (0.25× … 7× weekly prep) recompute the ingredient amounts and macros for
+  batch cooking; the multiplier is shared with the Dashboard/Planner "prep days".
+- **Per-ingredient deep-dive** — click any ingredient for its own macros at the current scale and a
+  **unit converter** (g ⇄ tbsp ⇄ tsp ⇄ cup ⇄ oz, derived even when only one unit is listed).
+- **Rice ↔ Brami pasta swap** (rice recipes) — a **calorie-matched** substitution that keeps
+  calories identical and shows how the other macros shift.
+- **Full editing** — change the title, description, ingredients (add/remove/rename, edit
+  amounts/units with live macro recompute), and steps; plus a **Notes** and **Freezer-tips** box.
+  Edits to your custom recipes save to your account; the shared templates stay read-only (edit a
+  copy instead). Macros recompute honestly — untracked seasonings keep their verified contribution.
+
+### Managing — the "Customize → My Recipes" tab
+A single list of everything you've created, with **View** (open in the scaler), **Edit** (jump back
+into the Add Recipe form), and **Delete**. It's private to your account and refreshes as you sign
+in/out or after changes.
+
+### Where recipes show up
+Every recipe (shared or yours) flows through the rest of the app automatically: it appears in the
+**Dashboard** meal dropdowns and **week templates**, contributes to the **macro totals** and
+**pie chart**, feeds the **grocery list** (with package buy/use math) and **prep timeline**, and is
+considered by the **ingredient-overlap** tool that helps you pick meals sharing ingredients.
+
+---
+
 ## Deploy your own instance
 
 You'll need a free **GitHub** account, a free **Supabase** project, and (optional, for ingredient
