@@ -2,7 +2,7 @@
 // REST API with the publishable key (exactly what the browser does), reconstructs the globals,
 // and deep-diffs against the accepted baseline (scripts/data-baseline.json, from
 // freeze-baseline.js). The data now lives in Supabase, so that snapshot — not the retired
-// js/data.js — is the reference. Run AFTER schema_app.sql + seed_app.sql:
+// js/data.js — is the reference. Run AFTER supabase/schema.sql + supabase/seed.sql:
 //   node scripts/check-live.js
 global.window = {};
 require('../js/config.js'); // sets window.SUPABASE_CONFIG
@@ -29,7 +29,7 @@ const canon = x => JSON.stringify(sortKeys(x));
         if (!res.ok) {
             const body = await res.text();
             console.log('FAIL ' + t + ': HTTP ' + res.status + ' ' + body);
-            console.log('\n-> Have you run supabase/schema_app.sql and supabase/seed_app.sql in the SQL Editor?');
+            console.log('\n-> Have you run supabase/schema.sql and supabase/seed.sql in the SQL Editor?');
             process.exitCode = 1; return;
         }
         data[t] = await res.json();

@@ -41,7 +41,7 @@
 
     window.DATA_READY = (async function () {
         if (!configured || !sbLib) {
-            overlay('<strong>Backend not configured.</strong><br>Set <code>js/config.js</code> and follow <code>BACKEND_SETUP.md</code>. This app loads its data from Supabase and needs an internet connection.', true);
+            overlay('<strong>Backend not configured.</strong><br>Set <code>js/config.js</code> and follow <code>README.md</code> (Deploy your own). This app loads its data from Supabase and needs an internet connection.', true);
             throw new Error('Supabase not configured');
         }
         overlay('Loading your meal-prep data…', false);
@@ -53,7 +53,7 @@
             data[t] = r.data || [];
         });
         if (!(data.stock_recipes && data.stock_recipes.length)) {
-            throw new Error('No recipes found — has supabase/seed_app.sql been run?');
+            throw new Error('No recipes found — has supabase/seed.sql been run?');
         }
         var built = window.reconstructFromRows(data);
         window.ingredientDB = built.ingredientDB;

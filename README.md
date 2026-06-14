@@ -1,132 +1,166 @@
 # Meal Prep Dashboard
 
-A single-page web app for planning a week of high-protein meal prep: mix-and-match meals, track daily and weekly macros against a calorie goal, scale recipes for batch cooking, generate a consolidated shopping list with real package/carton counts, and lay out a weekly meal prep schedule around where users can select recipes for all meals and snacks.
+A multi-page web app for planning a week of high-protein meal prep: mix-and-match meals, track
+daily/weekly macros against a calorie goal, scale recipes for batch cooking, build a consolidated
+shopping list with real package/case counts, and lay out a weekly schedule.
 
-It's a **dynamic site** complete with backend set up via Supabase. 
+It's a **static front end** (plain HTML/CSS/JS, no build step) backed by **Supabase** (Postgres +
+Auth + an Edge Function). It's **multi-user**: anyone can create an account, and each account's
+recipes are private to them — everyone shares a common set of pre-loaded starter templates.
+
+> **Want your own copy running?** Jump to [Deploy your own instance](#deploy-your-own-instance).
 
 ---
 
 ## Features
 
-The app has four tabs:
-
-### 1. Daily Dashboard
-- **Mix & match** any breakfast, lunch, dinner, and dessert, or load a pre-built week template.
-- Live **daily and weekly macro totals** (calories, protein, fat, fiber, carbs) and a calorie-contribution pie chart.
-- **Editable calorie goal** (header) — changing it proportionally scales every recipe (e.g. a goal of 900 halves all portions). The `1.0×` baseline in the Recipe Scaler follows suit.
-- Guardrail cards: goal met / over, per-meal max, snack budget.
-
-### 2. Recipe Scaler
-- Pick any recipe and scale it by a multiplier (defaults to **7×** for a week of prep).
-- See scaled ingredient amounts, scaled macros, prep steps, and freezer tips.
-- Click any ingredient for a **deep-dive** with per-ingredient macros and unit conversions.
-- **Rice ↔ Brami Pasta** toggle (rice recipes only): a **calorie-matched** swap that keeps calories the same and shows how the other macros shift.
-
-### 3. Sunday Planner
-- A **consolidated grocery list** for your selected plan × prep days.
-- For packaged items, a **buy line** (how many cartons/bags/cases to purchase) plus a **use line** (how much of one package you actually consume — so you know what's leftover).
-- A sequential **prep & cooking timeline** with clickable ingredient quantities.
-
-### 4. Calendar
-- A **weekly meal prep** view that allows custom breakfast / meals / snack plans.
-- Additionally, a daily schedule helper to optimize gym and work schedules with inputs for **wake**, **gym** (a 2-hour session), and **sleep**, plus a **"No gym today"** option.
-- Timing logic: breakfast ~30 min after waking, lunch midday, a light pre-gym snack ~1.5 h before lifting, a protein-forward dinner ~45 min after the gym, and dessert ~1.5 h before bed. (No-gym days use an afternoon snack and an evening dinner.)
-
-### Global controls (header)
-- **Daily Calorie Goal** — scales the whole plan.
-- **Ingredient Units: Exact / Whole** — rounds discrete items (eggs, bagels, potatoes, bread slices, curry cubes…) to whole numbers across macros, the scaler, and the shopping list, with the macros corrected to match. The rounding scale follows the **Prep Days** input (Prep Days = 1 → per-serving rounding; Prep Days = 7 → whole-week batch).
+- **Dashboard** — mix & match Breakfast / Meal 1 / Meal 2 / Snack / Dessert (or load a week
+  template); live daily & weekly macro totals + a calorie-contribution pie; editable calorie goal
+  that proportionally scales the whole plan; guardrail cards. Save the current mix as a new week.
+- **Recipes (scaler)** — pick any recipe, scale by a multiplier; scaled ingredients/macros/steps;
+  per-ingredient **deep-dive** with unit conversions; **Rice ↔ Brami pasta** calorie-matched swap;
+  edit recipes (your custom ones save to your account); a Notes + Freezer-tips box.
+- **Planner** — consolidated grocery list (× prep days) with **buy / use** lines for packaged
+  items, plus a sequential prep timeline.
+- **Calendar** — weekly schedule helper (wake / gym / sleep timing) **+** a week-template manager
+  and an **ingredient-overlap** tool to pick meals that share ingredients.
+- **Add Recipe (`+`)** — build custom recipes: search USDA foods, **quick-add staples**, **add
+  your own food** (manual macros), import from a **NYT Cooking** link, set a per-serving **scale
+  target**, and preview the scaled recipe before saving.
+- **Header** — one place to sign in / create an account / reset a password; a daily calorie goal;
+  an Exact/Whole ingredient-units toggle.
 
 ---
 
-## Running it
+## Deploy your own instance
 
-This is a static page using classic (non-module) scripts, so it works straight from the filesystem. Pick whichever is easiest:
+You'll need a free **GitHub** account, a free **Supabase** project, and (optional, for ingredient
+search & recipe import) a free **USDA FoodData Central** API key.
 
-1. **Double-click** `index.html` in your file explorer — it opens in your default browser.
-2. **VS Code → Run Task… → "Open Dashboard in Browser"** (provided in `.vscode/tasks.json`).
-3. **VS Code → Run and Debug → "Open Dashboard (Edge)"** or **"(Chrome)"** (provided in `.vscode/launch.json`; launches an isolated browser instance).
-4. Any static server (e.g. the **Live Preview** / **Live Server** VS Code extension, or `npx serve`).
+### 1. Get the code
+Fork this repo (or clone it). You'll deploy your fork to GitHub Pages in the last step.
 
-> No `npm install` needed. Tailwind CSS and Chart.js load from a CDN, so the first load requires an internet connection.
+### 2. Create a Supabase project
+[supabase.com](https://supabase.com) → **New project** (the free tier is plenty). Note your
+**Project URL** and **publishable/anon key** (Project Settings → **API**).
+
+### 3. Create the database
+In the Supabase **SQL Editor**, run these two files (in order):
+1. **`supabase/schema.sql`** — all tables + the multi-user security (Row Level Security) model.
+2. **`supabase/seed.sql`** — the shared starter templates (recipes, ingredients, packaging, week
+   templates). *Run this only at initial setup — it truncates the template tables.*
+
+### 4. Deploy the Edge Function *(optional but recommended)*
+`supabase/functions/usda-proxy` powers ingredient search and the NYT-Cooking importer. Without it,
+the rest of the app still works — you just add foods manually.
+
+```bash
+npm i -g supabase                 # the Supabase CLI
+supabase login
+supabase link --project-ref <your-project-ref>     # ref is in your project URL / Settings
+supabase secrets set USDA_API_KEY=<your-usda-key>   # free key: https://fdc.nal.usda.gov/api-key-signup
+supabase functions deploy usda-proxy --no-verify-jwt
+```
+
+### 5. Point the app at your project
+Edit **`js/config.js`**:
+```js
+window.SUPABASE_CONFIG = {
+  url:     "https://YOUR-PROJECT.supabase.co",
+  anonKey: "YOUR-PUBLISHABLE-ANON-KEY",   // public on purpose — see Security below
+};
+```
+
+### 6. Turn on accounts
+Supabase → **Authentication**:
+- **Providers → Email** → enable, and **allow new users to sign up**.
+- **URL Configuration** → set your **Site URL** to your deployed address (needed so the
+  "Forgot password" reset link returns to your site).
+- *(Optional)* **Settings** → turn off "Confirm email" for instant sign-up (otherwise new users
+  must click a confirmation email first).
+
+### 7. Deploy the site
+Push to your fork's `main`. The included **`.github/workflows/static.yml`** publishes the repo to
+**GitHub Pages** — enable Pages in your repo (Settings → Pages → Source: GitHub Actions). Any
+static host works too (Netlify, Vercel, `npx serve`, etc.).
+
+That's it — open your Pages URL, click **Create account** in the header, and start adding recipes.
+
+---
+
+## How accounts work
+
+- **One sign-in, in the header**: Sign in / Create account / Forgot password / Sign out. Signing
+  in there applies to every page.
+- Each account's **recipes, ingredients, and settings are private** (enforced by RLS).
+- **Everyone sees the shared starter templates** (the `stock_*` recipes + the seed week templates).
+- **Signed out** = templates only; sign in to see and add your own recipes.
+
+### Editing the shared templates
+The starter templates are **read-only to the app** — edit them in the Supabase **SQL editor**
+(`stock_recipes`, `stock_ingredients`, `packaging`, `week_plans` rows with `user_id IS NULL`, …);
+the service role there bypasses RLS. (`supabase/seed.sql` is just the initial snapshot of those
+rows.)
+
+---
+
+## Local development & tests
+
+```bash
+npm install          # just jsdom, for the headless tests
+npm run smoke        # boots every page in jsdom against a mocked backend; asserts they render
+node scripts/test-recipe-servings.js   # recipe-scaling / target-kcal math
+node scripts/test-parser.js            # NYT ingredient-line parser
+npm run seed         # regenerate supabase/seed.sql from the bundled template data
+```
+> `npm run smoke` uses a **mock** Supabase, so it cannot verify the live RLS isolation. After a
+> deploy, confirm isolation with two accounts: account B must never see account A's recipes.
+
+The site itself needs no build — serve the folder (e.g. VS Code Live Server, or `npx serve`) and
+open `index.html`. It needs internet (Tailwind/Chart.js CDNs + your Supabase project).
 
 ---
 
 ## Project structure
 
 ```
-meal-prep-planner/
-├── index.html                 # markup for all four tabs (structure only)
-├── css/
-│   └── styles.css             # custom styles (most styling is Tailwind utility classes)
-├── js/
-│   ├── data.js                # DATA: ingredientDB, recipes, week templates, packagingDB, app state
-│   ├── packaging.js           # package/case "buy & use" math
-│   └── app.js                 # all behavior: tabs, dashboard, scaler, planner, calendar, listeners
-└── .vscode/
-    ├── launch.json            # browser launch configs
-    └── tasks.json             # "Open Dashboard in Browser" task
+index.html / recipes.html / planner.html / calendar.html / builder.html   # the 5 pages
+css/styles.css
+js/
+  config.js          # YOUR Supabase URL + publishable key
+  data-reconstruct.js# rebuilds the app's data globals from Supabase rows (shared w/ tests)
+  data-layer.js      # creates the Supabase client; loads stock + your custom data
+  state.js           # persisted per-user state (calorie goal, selections, prep days…)
+  nav.js             # shared header + the unified sign-in widget
+  app.js             # dashboard / scaler / planner / calendar engine
+  builder.js         # the Add Recipe tab (USDA search, manual food, NYT import, save)
+  week-editor.js     # calendar week-template manager
+  overlap.js         # ingredient-overlap tool
+  recipe-parse.js / packaging.js
+supabase/
+  schema.sql         # complete schema + RLS (run first)
+  seed.sql           # shared starter templates (run second)
+  functions/usda-proxy/index.ts   # USDA search + NYT import Edge Function
+scripts/             # seed generation + headless tests
 ```
-
-Scripts load in order: `data.js` → `packaging.js` → `app.js`. They are deliberately **classic `<script>` tags** (not ES modules) so the page runs over `file://` and inline handlers work. Don't convert them to modules without adding a server.
+Scripts are deliberately **classic `<script>` tags** (not ES modules) so inline handlers and
+cross-file globals work; load order matters (see each page's `<script>` block).
 
 ---
 
-## Customizing your plan
+## Security
 
-Almost everything lives in **`js/data.js`**.
-
-### Add or edit a recipe (`recipes`)
-```js
-myRecipe: {
-  id: 'myRecipe',
-  title: 'My Recipe',
-  desc: 'Short description.',
-  type: 'Lunch',                 // Breakfast | Lunch | Dinner | Dessert
-  week: [],                      // optional metadata
-  baseMacros: { cal: 500, prot: 40, fat: 15, fib: 8, carb: 45 }, // ONE serving (1.0×)
-  ingredients: [
-    { name: 'Extra Firm Tofu', amount: 200, unit: 'g' },
-    { name: 'Large Eggs', amount: 2, unit: 'whole' }
-  ],
-  steps: ['Step one.', 'Step two.'],
-  freezerTips: 'Storage/reheat notes.'
-}
-```
-Then add it to the matching dropdown(s) in `index.html` (`breakfast-mix`, `lunch-mix`, `dinner-mix`, or `dessert-mix`) as an `<option value="myRecipe">…</option>`. Macros are **per serving**; the app scales up from there.
-
-### Add an ingredient (`ingredientDB`)
-Used by the deep-dive and the whole-units macro math.
-```js
-'my ingredient': {
-  cal: 80, prot: 1.8, fat: 0.8, fib: 2.0, carb: 18.0,   // per the reference serving below
-  conversions: { g: 100, tbsp: 16.7, cup: 0.7 }          // g = grams in the reference serving
-}
-```
-Convention: macros are **per the reference serving whose gram weight is `conversions.g`**, and each unit's value is `referenceGrams ÷ gramsPerUnit`. Keys must be the lowercase ingredient name. Most values here come from USDA FoodData Central or product labels; estimates are flagged in comments.
-
-### Set retail package sizes (`packagingDB`)
-Drives the shopping list's "how much to buy".
-```js
-'kirkland liquid egg whites': {
-  retailUnit: 'carton', unitLabel: 'cartons',
-  gramsPerUnit: 454,        // grams in one buyable unit
-  unitsPerCase: 6,          // 1 = sold individually
-  caseLabel: 'case',
-  verified: true            // false shows a "verify pack size" warning
-}
-```
+- The **publishable/anon key** in `js/config.js` is **public by design** — it ends up in the
+  deployed JS regardless. Security comes from the **RLS policies** in `supabase/schema.sql`, not
+  from hiding the key.
+- **NEVER** put the **`service_role` / secret key** (`sb_secret_…`) in client code or commit it —
+  it bypasses RLS and grants full read/write. Use it only in the SQL editor / server side.
+- Custom data is own-only; shared template tables are read-only to clients. Verify with the
+  two-account check above after deploying.
 
 ---
 
 ## Tech stack
 
-- Plain **HTML + CSS + JavaScript** (no framework, no bundler).
-- **Tailwind CSS** (CDN) for styling, configured inline in the HTML `<head>`.
-- **Chart.js** (CDN) for the calorie-contribution pie chart.
-
----
-
-## Notes
-
-- Calorie/macro figures are as accurate as the data in `data.js`. A few ingredient values (e.g. Brami pasta fat/carb/fiber, garam masala) are **estimates** and are flagged in code comments — update them from the actual packaging for full accuracy.
-- The default calorie goal is **1800 kcal/day**; the default prep horizon is **7 days**.
+Plain **HTML + CSS + JavaScript** · **Tailwind CSS** & **Chart.js** (CDN) · **Supabase**
+(Postgres, Auth, Edge Functions/Deno) · **USDA FoodData Central** API.

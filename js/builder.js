@@ -691,7 +691,7 @@
     // Guard: the Add Recipe tab must never break the rest of the app.
     try {
         if (!configured) {
-            showConfigWarning('<strong>Backend not configured.</strong> Edit <code class="bg-amber-100 px-1 rounded">js/config.js</code> with your Supabase URL &amp; publishable key, then follow <code class="bg-amber-100 px-1 rounded">BACKEND_SETUP.md</code>.');
+            showConfigWarning('<strong>Backend not configured.</strong> Edit <code class="bg-amber-100 px-1 rounded">js/config.js</code> with your Supabase URL &amp; publishable key, then follow <code class="bg-amber-100 px-1 rounded">README.md</code> (Deploy your own).');
             return;
         }
         if (!sb) {

@@ -1,0 +1,5 @@
+.env
+.vscode
+node_modules
+supabase/.temp
+scripts/._data_eval.js
