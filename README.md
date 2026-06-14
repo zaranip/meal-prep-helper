@@ -6,7 +6,7 @@ shopping list with real package/case counts, and lay out a weekly schedule.
 
 It's a **static front end** (plain HTML/CSS/JS, no build step) backed by **Supabase** (Postgres +
 Auth + an Edge Function). It's **multi-user**: anyone can create an account, and each account's
-recipes are private to them — everyone shares a common set of pre-loaded starter templates.
+recipes are private to them: everyone shares a common set of pre-loaded starter templates.
 
 > **Want your own copy running?** Jump to [Deploy your own instance](#deploy-your-own-instance).
 
@@ -14,20 +14,20 @@ recipes are private to them — everyone shares a common set of pre-loaded start
 
 ## Features
 
-- **Dashboard** — mix & match Breakfast / Meal 1 / Meal 2 / Snack / Dessert (or load a week
+- **Dashboard**: mix & match Breakfast / Meal 1 / Meal 2 / Snack / Dessert (or load a week
   template); live daily & weekly macro totals + a calorie-contribution pie; editable calorie goal
   that proportionally scales the whole plan; guardrail cards. Save the current mix as a new week.
-- **Recipes (scaler)** — pick any recipe, scale by a multiplier; scaled ingredients/macros/steps;
+- **Recipes (scaler)**: pick any recipe, scale by a multiplier; scaled ingredients/macros/steps;
   per-ingredient **deep-dive** with unit conversions; **Rice ↔ Brami pasta** calorie-matched swap;
   edit recipes (your custom ones save to your account); a Notes + Freezer-tips box.
-- **Planner** — consolidated grocery list (× prep days) with **buy / use** lines for packaged
+- **Planner**: consolidated grocery list (× prep days) with **buy / use** lines for packaged
   items, plus a sequential prep timeline.
-- **Calendar** — weekly schedule helper (wake / gym / sleep timing) **+** a week-template manager
+- **Calendar**: weekly schedule helper (wake / gym / sleep timing) **+** a week-template manager
   and an **ingredient-overlap** tool to pick meals that share ingredients.
-- **Add Recipe (`+`)** — build custom recipes: search USDA foods, **quick-add staples**, **add
+- **Add Recipe (`+`)**: build custom recipes: search USDA foods, **quick-add staples**, **add
   your own food** (manual macros), import from a **NYT Cooking** link, set a per-serving **scale
   target**, and preview the scaled recipe before saving.
-- **Header** — one place to sign in / create an account / reset a password; a daily calorie goal;
+- **Header**: one place to sign in / create an account / reset a password; a daily calorie goal;
   an Exact/Whole ingredient-units toggle.
 
 ---
@@ -38,18 +38,18 @@ Recipes are the heart of the app. There are two kinds: **shared starter recipes*
 templates everyone gets) and **your custom recipes** (private to your account). Here's the full
 lifecycle.
 
-### Building a recipe — the "Customize → Add Recipes" tab
+### Building a recipe: the "Customize → Add Recipes" tab
 Several ways to add ingredients, mix-and-match freely within one recipe:
 
-- **USDA search** — type a food, pick a result, and it's pulled from USDA FoodData Central with
+- **USDA search**: type a food, pick a result, and it's pulled from USDA FoodData Central with
   per-100g macros; set the gram weight and the running totals update live. USDA values are flagged
   **"est."** so you know to confirm against the package.
-- **Quick-add staples** — one-click buttons for the things you use constantly (rice blend, egg-white
+- **Quick-add staples**: one-click buttons for the things you use constantly (rice blend, egg-white
   carton, tofu block, light butter, garlic clove, medium onion, whole egg), each using **verified**
   macros and auto-scaled to your base servings.
-- **Add your own food** — for anything not in USDA: enter a name + the macros for a given gram
+- **Add your own food**: for anything not in USDA: enter a name + the macros for a given gram
   amount, and it's added like any other ingredient (kept private to you).
-- **Import from NYT Cooking** — paste a `cooking.nytimes.com` link and it auto-fills the title,
+- **Import from NYT Cooking**: paste a `cooking.nytimes.com` link and it auto-fills the title,
   servings, steps, and ingredients (matched to USDA and flagged for review). The recipe's
   description becomes the source link.
 
@@ -60,29 +60,29 @@ As you build, the **"This recipe" panel** shows the actual ingredient totals, an
 So recipes slot cleanly into a daily plan, each custom recipe is normalized to a **per-serving
 calorie target** (default **700 kcal**). You control this per recipe:
 
-- **Auto (700 kcal/serving)** — the default. If the recipe contains rice (the carb base), the
+- **Auto (700 kcal/serving)**: the default. If the recipe contains rice (the carb base), the
   **rice is auto-sized to fill the gap** to the target while the rest stays as entered; otherwise
   the whole recipe is scaled to the target.
-- **Custom kcal/serving** — type any target (e.g. 500) and it normalizes to that instead.
-- **Keep as entered** — no scaling; the recipe stays exactly as you typed it.
-- **Snacks are never scaled** — a 20-kcal bag of carrots stays 20 kcal.
+- **Custom kcal/serving**: type any target (e.g. 500) and it normalizes to that instead.
+- **Keep as entered**: no scaling; the recipe stays exactly as you typed it.
+- **Snacks are never scaled**: a 20-kcal bag of carrots stays 20 kcal.
 
 The calorie-goal in the header then scales the *whole plan* on top of this (a 900-kcal goal halves
 every portion), so the numbers stay consistent everywhere.
 
-### Scaling & exploring — the "Recipes" tab
+### Scaling & exploring: the "Recipes" tab
 - **Multiplier + presets** (0.25× … 7× weekly prep) recompute the ingredient amounts and macros for
   batch cooking; the multiplier is shared with the Dashboard/Planner "prep days".
-- **Per-ingredient deep-dive** — click any ingredient for its own macros at the current scale and a
+- **Per-ingredient deep-dive**: click any ingredient for its own macros at the current scale and a
   **unit converter** (g ⇄ tbsp ⇄ tsp ⇄ cup ⇄ oz, derived even when only one unit is listed).
-- **Rice ↔ Brami pasta swap** (rice recipes) — a **calorie-matched** substitution that keeps
+- **Rice ↔ Brami pasta swap** (rice recipes): a **calorie-matched** substitution that keeps
   calories identical and shows how the other macros shift.
-- **Full editing** — change the title, description, ingredients (add/remove/rename, edit
+- **Full editing**: change the title, description, ingredients (add/remove/rename, edit
   amounts/units with live macro recompute), and steps; plus a **Notes** and **Freezer-tips** box.
   Edits to your custom recipes save to your account; the shared templates stay read-only (edit a
-  copy instead). Macros recompute honestly — untracked seasonings keep their verified contribution.
+  copy instead). Macros recompute honestly: untracked seasonings keep their verified contribution.
 
-### Managing — the "Customize → My Recipes" tab
+### Managing: the "Customize → My Recipes" tab
 A single list of everything you've created, with **View** (open in the scaler), **Edit** (jump back
 into the Add Recipe form), and **Delete**. It's private to your account and refreshes as you sign
 in/out or after changes.
@@ -109,13 +109,13 @@ Fork this repo (or clone it). You'll deploy your fork to GitHub Pages in the las
 
 ### 3. Create the database
 In the Supabase **SQL Editor**, run these two files (in order):
-1. **`supabase/schema.sql`** — all tables + the multi-user security (Row Level Security) model.
-2. **`supabase/seed.sql`** — the shared starter templates (recipes, ingredients, packaging, week
-   templates). *Run this only at initial setup — it truncates the template tables.*
+1. **`supabase/schema.sql`**: all tables + the multi-user security (Row Level Security) model.
+2. **`supabase/seed.sql`**: the shared starter templates (recipes, ingredients, packaging, week
+   templates). *Run this only at initial setup: it truncates the template tables.*
 
 ### 4. Deploy the Edge Function *(optional but recommended)*
 `supabase/functions/usda-proxy` powers ingredient search and the NYT-Cooking importer. Without it,
-the rest of the app still works — you just add foods manually.
+the rest of the app still works: you just add foods manually.
 
 ```bash
 npm i -g supabase                 # the Supabase CLI
@@ -130,7 +130,7 @@ Edit **`js/config.js`**:
 ```js
 window.SUPABASE_CONFIG = {
   url:     "https://YOUR-PROJECT.supabase.co",
-  anonKey: "YOUR-PUBLISHABLE-ANON-KEY",   // public on purpose — see Security below
+  anonKey: "YOUR-PUBLISHABLE-ANON-KEY",   // public on purpose: see Security below
 };
 ```
 
@@ -144,10 +144,10 @@ Supabase → **Authentication**:
 
 ### 7. Deploy the site
 Push to your fork's `main`. The included **`.github/workflows/static.yml`** publishes the repo to
-**GitHub Pages** — enable Pages in your repo (Settings → Pages → Source: GitHub Actions). Any
+**GitHub Pages**: enable Pages in your repo (Settings → Pages → Source: GitHub Actions). Any
 static host works too (Netlify, Vercel, `npx serve`, etc.).
 
-That's it — open your Pages URL, click **Create account** in the header, and start adding recipes.
+That's it: open your Pages URL, click **Create account** in the header, and start adding recipes.
 
 ---
 
@@ -160,7 +160,7 @@ That's it — open your Pages URL, click **Create account** in the header, and s
 - **Signed out** = templates only; sign in to see and add your own recipes.
 
 ### Editing the shared templates
-The starter templates are **read-only to the app** — edit them in the Supabase **SQL editor**
+The starter templates are **read-only to the app**: edit them in the Supabase **SQL editor**
 (`stock_recipes`, `stock_ingredients`, `packaging`, `week_plans` rows with `user_id IS NULL`, …);
 the service role there bypasses RLS. (`supabase/seed.sql` is just the initial snapshot of those
 rows.)
@@ -179,7 +179,7 @@ npm run seed         # regenerate supabase/seed.sql from the bundled template da
 > `npm run smoke` uses a **mock** Supabase, so it cannot verify the live RLS isolation. After a
 > deploy, confirm isolation with two accounts: account B must never see account A's recipes.
 
-The site itself needs no build — serve the folder (e.g. VS Code Live Server, or `npx serve`) and
+The site itself needs no build: serve the folder (e.g. VS Code Live Server, or `npx serve`) and
 open `index.html`. It needs internet (Tailwind/Chart.js CDNs + your Supabase project).
 
 ---
@@ -213,7 +213,7 @@ cross-file globals work; load order matters (see each page's `<script>` block).
 
 ## Security
 
-- The **publishable/anon key** in `js/config.js` is **public by design** — it ends up in the
+- The **publishable/anon key** in `js/config.js` is **public by design**: it ends up in the
   deployed JS regardless. Security comes from the **RLS policies** in `supabase/schema.sql`, not
   from hiding the key.
 - **NEVER** put the **`service_role` / secret key** (`sb_secret_…`) in client code or commit it —
