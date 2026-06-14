@@ -216,7 +216,7 @@ cross-file globals work; load order matters (see each page's `<script>` block).
 - The **publishable/anon key** in `js/config.js` is **public by design**: it ends up in the
   deployed JS regardless. Security comes from the **RLS policies** in `supabase/schema.sql`, not
   from hiding the key.
-- **NEVER** put the **`service_role` / secret key** (`sb_secret_…`) in client code or commit it —
+- **NEVER** put the **`service_role` / secret key** (`sb_secret_…`) in client code or commit it:
   it bypasses RLS and grants full read/write. Use it only in the SQL editor / server side.
 - Custom data is own-only; shared template tables are read-only to clients. Verify with the
   two-account check above after deploying.
